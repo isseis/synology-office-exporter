@@ -1,0 +1,104 @@
+#! /usr/bin/python3
+
+from io import BytesIO
+import os
+import sys
+
+from dotenv import load_dotenv
+from synology_drive_api.drive import SynologyDrive
+
+
+# BytesIO オブジェクトの内容をファイルに書き込む
+def save_bytesio_to_file(data: BytesIO, filename: str):
+    # ポインタを先頭に戻す
+    data.seek(0)
+    
+    # バイナリモードでファイルを開いて書き込む
+    with open(filename, 'wb') as f:
+        f.write(data.getvalue())
+
+# .envファイルの読み込み
+load_dotenv()
+
+NAS_USER=os.getenv('SYNOLOGY_NAS_USER')
+NAS_PASS=os.getenv('SYNOLOGY_NAS_PASS')
+NAS_IP=os.getenv('SYNOLOGY_NAS_IP')
+
+class SynologyDriveEx(SynologyDrive):
+    def shared_with_me(self):
+        """
+        get shared folder info
+        :return: [{'file_id': 'xxx', 'name': 'xxx', 'owner': {'name': 'xxx'}}]
+        """
+        #{"include_transient":true}
+        api_name = 'SYNO.SynologyDrive.Files'
+        endpoint = 'entry.cgi'
+        params = {'api': api_name, 'version': 2, 'method': 'shared_with_me', 'filter': {}, 'sort_direction': 'asc',
+                  'sort_by': 'name', 'offset': 0, 'limit': 1000}
+        resp = self.session.http_get(endpoint, params=params)
+
+        if not resp['success']:
+            raise Exception('Get shared_with_me info failed.')
+
+        if resp['data']['total'] == 0:
+            return {}
+
+        return resp['data']['items']
+
+class OfficeFileFetcher:
+    def __init__(self, synd: SynologyDriveEx, owner_name: str, dir_name: str, file_id: str):
+        self.owner_name = owner_name
+        self.dir_name = dir_name
+        self.file_id = file_id
+        self.synd = synd
+
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+    def execute(self):
+        #print(self.owner_name, self.dir_name, self.file_id)
+        resp = self.synd.list_folder(self.file_id)
+        if not resp['success']:
+            raise Exception('list folder failed.')
+        for item in resp['data']['items']:
+            if item['content_type'] != 'document' or item['encrypted']:
+                continue
+            offline_name = self.get_offline_name(item['name'])
+            if not offline_name:
+                continue
+            display_path = item['display_path']
+            print(f'{display_path} => {self.owner_name}_{self.dir_name}_{offline_name}')
+            data = self.synd.download_synology_office_file(item['file_id'])
+            save_bytesio_to_file(data, f'{self.owner_name}_{self.dir_name}_{offline_name}')
+
+    @staticmethod
+    def get_offline_name(name):
+        extension_mapping = {
+                '.osheet': '.xlsx',
+                '.odoc': '.docx',
+                '.oslides': '.pptx'
+            }
+        for ext, new_ext in extension_mapping.items():
+            if name.endswith(ext):
+                return name[: -len(ext)] + new_ext
+        return None
+
+def main() -> int:
+    # default http port is 5000, https is 5001. 
+    with SynologyDriveEx(NAS_USER, NAS_PASS, NAS_IP, dsm_version='7') as synd:
+        for item in synd.shared_with_me():
+            owner_name = item['owner']['name']
+            dir_name = item['name']
+            file_id = item['file_id']
+            with OfficeFileFetcher(synd, owner_name, dir_name, file_id) as off:
+                off.execute()
+
+
+        #print(synd.list_folder('871932547865555615'))
+    return 0
+
+if __name__ == '__main__':
+    sys.exit(main())  # next section explains the use of sys.exit
