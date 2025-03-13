@@ -6,7 +6,7 @@ import sys
 from typing import Optional
 
 from dotenv import load_dotenv
-from synology_drive_api.drive import SynologyDrive
+from synology_drive_ex import SynologyDriveEx
 
 
 # BytesIO オブジェクトの内容をファイルに書き込む
@@ -17,28 +17,6 @@ def save_bytesio_to_file(data: BytesIO, filename: str):
     # バイナリモードでファイルを開いて書き込む
     with open(filename, 'wb') as f:
         f.write(data.getvalue())
-
-
-class SynologyDriveEx(SynologyDrive):
-    def shared_with_me(self):
-        """
-        get shared folder info
-        :return: [{'file_id': 'xxx', 'name': 'xxx', 'owner': {'name': 'xxx'}}]
-        """
-        # {"include_transient":true}
-        api_name = 'SYNO.SynologyDrive.Files'
-        endpoint = 'entry.cgi'
-        params = {'api': api_name, 'version': 2, 'method': 'shared_with_me', 'filter': {}, 'sort_direction': 'asc',
-                  'sort_by': 'name', 'offset': 0, 'limit': 1000}
-        resp = self.session.http_get(endpoint, params=params)
-
-        if not resp['success']:
-            raise Exception('Get shared_with_me info failed.')
-
-        if resp['data']['total'] == 0:
-            return {}
-
-        return resp['data']['items']
 
 
 class OfficeFileFetcher:
