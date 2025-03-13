@@ -3,6 +3,7 @@
 from io import BytesIO
 import os
 import sys
+from typing import Optional, Union
 
 from dotenv import load_dotenv
 from synology_drive_api.drive import SynologyDrive
@@ -16,13 +17,6 @@ def save_bytesio_to_file(data: BytesIO, filename: str):
     # バイナリモードでファイルを開いて書き込む
     with open(filename, 'wb') as f:
         f.write(data.getvalue())
-
-# .envファイルの読み込み
-load_dotenv()
-
-NAS_USER=os.getenv('SYNOLOGY_NAS_USER')
-NAS_PASS=os.getenv('SYNOLOGY_NAS_PASS')
-NAS_IP=os.getenv('SYNOLOGY_NAS_IP')
 
 class SynologyDriveEx(SynologyDrive):
     def shared_with_me(self):
@@ -74,7 +68,22 @@ class OfficeFileFetcher:
             save_bytesio_to_file(data, f'{owner_name}_{dir_name}_{offline_name}')
 
     @staticmethod
-    def get_offline_name(name):
+    def get_offline_name(name: str) -> Optional[str]:
+        """
+        Converts Synology Office file names to Microsoft Office file names.
+        
+        File type conversions:
+        - osheet -> xlsx (Excel)
+        - odoc -> docx (Word)
+        - oslides -> pptx (PowerPoint)
+        
+        Parameters:
+            name (str): The file name to convert
+            
+        Returns:
+            str or None: The file name with corresponding Microsoft Office extension.
+                        Returns None if not a Synology Office file.
+        """
         extension_mapping = {
                 '.osheet': '.xlsx',
                 '.odoc': '.docx',
@@ -86,6 +95,13 @@ class OfficeFileFetcher:
         return None
 
 def main() -> int:
+    # .envファイルの読み込み
+    load_dotenv()
+
+    NAS_USER=os.getenv('SYNOLOGY_NAS_USER')
+    NAS_PASS=os.getenv('SYNOLOGY_NAS_PASS')
+    NAS_IP=os.getenv('SYNOLOGY_NAS_IP')
+
     # default http port is 5000, https is 5001. 
     with SynologyDriveEx(NAS_USER, NAS_PASS, NAS_IP, dsm_version='7') as synd:
         for item in synd.shared_with_me():
@@ -100,4 +116,4 @@ def main() -> int:
     return 0
 
 if __name__ == '__main__':
-    sys.exit(main())  # next section explains the use of sys.exit
+    sys.exit(main())

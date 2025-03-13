@@ -38,5 +38,13 @@ class TestOfficeFileFetcher(unittest.TestCase):
         mock_synd.list_folder.assert_called_once_with('file_id')
         mock_synd.download_synology_office_file.assert_called_once_with('123')
 
+    def test_get_offline_name(self):
+        # Synology office のファイルの場合 MS Office 拡張子に変換する。
+        self.assertEqual(OfficeFileFetcher.get_offline_name('test.osheet'), 'test.xlsx')
+        self.assertEqual(OfficeFileFetcher.get_offline_name('test.odoc'), 'test.docx')
+        self.assertEqual(OfficeFileFetcher.get_offline_name('test.oslides'), 'test.pptx')
+        # それ以外の場合は None を返す。
+        self.assertIsNone(OfficeFileFetcher.get_offline_name('test.txt'))
+
 if __name__ == '__main__':
     unittest.main()
