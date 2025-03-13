@@ -46,10 +46,7 @@ class SynologyDriveEx(SynologyDrive):
         return resp['data']['items']
 
 class OfficeFileFetcher:
-    def __init__(self, synd: SynologyDriveEx, owner_name: str, dir_name: str, file_id: str):
-        self.owner_name = owner_name
-        self.dir_name = dir_name
-        self.file_id = file_id
+    def __init__(self, synd: SynologyDriveEx):
         self.synd = synd
 
     def __enter__(self):
@@ -58,21 +55,23 @@ class OfficeFileFetcher:
     def __exit__(self, exc_type, exc_value, traceback):
         pass
 
-    def execute(self):
-        #print(self.owner_name, self.dir_name, self.file_id)
-        resp = self.synd.list_folder(self.file_id)
+    def execute(self, owner_name: str, dir_name: str, file_id: str):
+        #print(owner_name, dir_name, file_id)
+        resp = self.synd.list_folder(file_id)
         if not resp['success']:
             raise Exception('list folder failed.')
         for item in resp['data']['items']:
+            if item['content_type'] == 'dir':
+                pass
             if item['content_type'] != 'document' or item['encrypted']:
                 continue
             offline_name = self.get_offline_name(item['name'])
             if not offline_name:
                 continue
             display_path = item['display_path']
-            print(f'{display_path} => {self.owner_name}_{self.dir_name}_{offline_name}')
+            print(f'{display_path} => {owner_name}_{dir_name}_{offline_name}')
             data = self.synd.download_synology_office_file(item['file_id'])
-            save_bytesio_to_file(data, f'{self.owner_name}_{self.dir_name}_{offline_name}')
+            save_bytesio_to_file(data, f'{owner_name}_{dir_name}_{offline_name}')
 
     @staticmethod
     def get_offline_name(name):
@@ -93,8 +92,8 @@ def main() -> int:
             owner_name = item['owner']['name']
             dir_name = item['name']
             file_id = item['file_id']
-            with OfficeFileFetcher(synd, owner_name, dir_name, file_id) as off:
-                off.execute()
+            with OfficeFileFetcher(synd) as off:
+                off.execute(owner_name, dir_name, file_id)
 
 
         #print(synd.list_folder('871932547865555615'))
