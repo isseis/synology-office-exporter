@@ -34,7 +34,7 @@ import logging
 import os
 import sys
 from dotenv import load_dotenv
-from office_file_downloader import OfficeFileDownloader, SynologyDriveEx
+from synology_office_exporter import OfficeFileDownloader, SynologyDriveEx
 
 # office_file_downloader.pyからLOG_LEVELSを移植
 LOG_LEVELS = {

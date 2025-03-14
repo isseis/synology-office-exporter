@@ -2,11 +2,11 @@ import unittest
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
 import os
-from office_file_downloader import OfficeFileDownloader, SynologyDriveEx
+from synology_office_exporter import OfficeFileDownloader, SynologyDriveEx
 
 
 class TestOfficeFileDownloader(unittest.TestCase):
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    @patch('synology_office_exporter.OfficeFileDownloader.save_bytesio_to_file')
     def test_process_document(self, mock_save_bytesio_to_file):
         mock_synd = MagicMock(spec=SynologyDriveEx)
         mock_synd.list_folder.return_value = {
@@ -47,7 +47,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         # For other files, return None
         self.assertIsNone(OfficeFileDownloader.get_offline_name('test.txt'))
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_item')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_item')
     def test_download_shared_files(self, mock_process_item):
         mock_synd = MagicMock(spec=SynologyDriveEx)
         mock_synd.shared_with_me.return_value = [
@@ -65,7 +65,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
             call({'file_id': '456', 'content_type': 'dir', 'name': 'folder1'})
         ])
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_directory')
     def test_download_teamfolder_files(self, mock_process_directory):
         mock_synd = MagicMock(spec=SynologyDriveEx)
         mock_synd.get_teamfolder_info.return_value = {
@@ -83,8 +83,8 @@ class TestOfficeFileDownloader(unittest.TestCase):
             call('012', 'Team Folder 2')
         ], any_order=True)  # Order of dictionary items is not guaranteed
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_document')
-    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_document')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_directory')
     def test_process_item(self, mock_process_directory, mock_process_document):
         mock_synd = MagicMock(spec=SynologyDriveEx)
         downloader = OfficeFileDownloader(mock_synd)
@@ -130,7 +130,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_process_document.assert_not_called()
         mock_process_directory.assert_not_called()
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_directory')
     def test_download_mydrive_files(self, mock_process_directory):
         # Mock SynologyDriveEx
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -144,7 +144,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         # Verify _process_directory was called with the correct parameters
         mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_item')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_item')
     def test_exception_handling_shared_files(self, mock_process_item):
         """Test that the program continues downloading even if some files cause exceptions."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -176,7 +176,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_process_item.assert_any_call({'file_id': '456', 'content_type': 'dir', 'name': 'folder1'})
         mock_process_item.assert_any_call({'file_id': '789', 'content_type': 'document', 'name': 'doc2'})
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_directory')
     def test_exception_handling_mydrive(self, mock_process_directory):
         """Test that exceptions in _process_directory do not stop execution."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -188,7 +188,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         # Verify _process_directory was called with correct parameters
         mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_directory')
     def test_exception_handling_teamfolders(self, mock_process_directory):
         """Test that exceptions in one team folder do not prevent processing other folders."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -231,7 +231,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_download.assert_called_once_with('123')
         downloader.save_bytesio_to_file.assert_not_called()
 
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    @patch('synology_office_exporter.OfficeFileDownloader.save_bytesio_to_file')
     def test_exception_handling_download(self, mock_save):
         """Test that exceptions during file download do not stop processing."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -245,7 +245,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         # Save should not have been called because download failed
         mock_save.assert_not_called()
 
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    @patch('synology_office_exporter.OfficeFileDownloader.save_bytesio_to_file')
     def test_download_history_skips_unchanged_files(self, mock_save):
         """Test that files with unchanged hash are not re-downloaded."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -268,7 +268,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_synd.download_synology_office_file.assert_not_called()
         mock_save.assert_not_called()
 
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    @patch('synology_office_exporter.OfficeFileDownloader.save_bytesio_to_file')
     def test_download_history_downloads_changed_files(self, mock_save):
         """Test that files with changed hash are re-downloaded."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -295,7 +295,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         # Verify that the history was updated with the new hash
         self.assertEqual(downloader.download_history['123']['hash'], 'new-hash')
 
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    @patch('synology_office_exporter.OfficeFileDownloader.save_bytesio_to_file')
     def test_download_history_saves_new_files(self, mock_save):
         """Test that new files are added to download history."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -356,9 +356,9 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'w')
         mock_json_dump.assert_called_once_with(downloader.download_history, mock_open())
 
-    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
-    @patch('office_file_downloader.OfficeFileDownloader._save_download_history')
-    @patch('office_file_downloader.OfficeFileDownloader._load_download_history')
+    @patch('synology_office_exporter.OfficeFileDownloader._process_directory')
+    @patch('synology_office_exporter.OfficeFileDownloader._save_download_history')
+    @patch('synology_office_exporter.OfficeFileDownloader._load_download_history')
     def test_context_manager(self, mock_load, mock_save, mock_process):
         """Test that context manager loads and saves download history."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -375,7 +375,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_save.assert_called_once()
         mock_process.assert_called_once()
 
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    @patch('synology_office_exporter.OfficeFileDownloader.save_bytesio_to_file')
     def test_force_download_ignores_history(self, mock_save):
         """Test that force_download option downloads files regardless of history."""
         mock_synd = MagicMock(spec=SynologyDriveEx)
