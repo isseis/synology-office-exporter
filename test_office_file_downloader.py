@@ -34,7 +34,7 @@ class TestOfficeFileDownloader(unittest.TestCase):
 
         # Create OfficeFileDownloader instance with test output directory
         downloader = OfficeFileDownloader(mock_synd, output_dir='.')
-        downloader._process_document('123', 'path/to/test.osheet')
+        downloader._process_document('123', 'path/to/test.osheet', hash=None)
 
         # Check if save_bytesio_to_file was called with correct parameters
         args, kwargs = mock_save_bytesio_to_file.call_args
@@ -131,7 +131,8 @@ class TestOfficeFileDownloader(unittest.TestCase):
             'encrypted': False
         }
         downloader._process_item(doc_item)
-        mock_process_document.assert_called_once_with('123', 'path/to/doc.osheet')
+        # Modify this line to check with positional arguments instead of keyword arguments
+        mock_process_document.assert_called_once_with('123', 'path/to/doc.osheet', None)
         mock_process_directory.assert_not_called()
 
         # Reset mocks
@@ -247,26 +248,27 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_process_directory.assert_any_call('222', 'Team Folder 2')
         mock_process_directory.assert_any_call('333', 'Team Folder 3')
 
-    @patch('office_file_downloader.SynologyDriveEx.download_synology_office_file')
-    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
-    def test_exception_handling_download(self, mock_save, mock_download):
+    def test_exception_handling_download_synology(self):
         """Test that exceptions during file download do not stop processing."""
-        # Mock SynologyDriveEx
+        # Create mocks
         mock_synd = MagicMock(spec=SynologyDriveEx)
+        mock_download = MagicMock(side_effect=Exception("Download failed"))
 
-        # Mock download to raise an exception
-        mock_download.side_effect = Exception("Download failed")
+        # Replace the download method in our mock
+        mock_synd.download_synology_office_file = mock_download
 
-        # Create downloader instance and test document
+        # Create downloader instance
         downloader = OfficeFileDownloader(mock_synd)
 
-        # This should not raise an exception out of the method
-        downloader._process_document('123', 'path/to/test.osheet')
+        # Mock the save method
+        downloader.save_bytesio_to_file = MagicMock()
 
-        # Verify download was attempted
+        # This should not raise an exception out of the method
+        downloader._process_document('123', 'path/to/test.osheet', hash=None)
+
+        # Verify mocks
         mock_download.assert_called_once_with('123')
-        # Save should not have been called because download failed
-        mock_save.assert_not_called()
+        downloader.save_bytesio_to_file.assert_not_called()
 
     @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
     def test_exception_handling_download(self, mock_save):
@@ -281,12 +283,153 @@ class TestOfficeFileDownloader(unittest.TestCase):
         downloader = OfficeFileDownloader(mock_synd)
 
         # This should not raise an exception out of the method
-        downloader._process_document('123', 'path/to/test.osheet')
+        downloader._process_document('123', 'path/to/test.osheet', hash=None)
 
         # Verify download was attempted
         mock_synd.download_synology_office_file.assert_called_once_with('123')
         # Save should not have been called because download failed
         mock_save.assert_not_called()
+
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_download_history_skips_unchanged_files(self, mock_save):
+        """Test that files with unchanged hash are not re-downloaded."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+        mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
+
+        # Create downloader instance and set up download history
+        downloader = OfficeFileDownloader(mock_synd, output_dir='.')
+        downloader.download_history = {
+            '123': {
+                'hash': 'abc123',
+                'path': 'path/to/test.osheet',
+                'output_path': './test.xlsx',
+                'download_time': '2023-01-01 12:00:00'
+            }
+        }
+
+        # Process a document that's already in the history with the same hash
+        downloader._process_document('123', 'path/to/test.osheet', 'abc123')
+
+        # Verify that download was not attempted
+        mock_synd.download_synology_office_file.assert_not_called()
+        mock_save.assert_not_called()
+
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_download_history_downloads_changed_files(self, mock_save):
+        """Test that files with changed hash are re-downloaded."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+        mock_synd.download_synology_office_file.return_value = BytesIO(b'updated data')
+
+        # Create downloader instance and set up download history with old hash
+        downloader = OfficeFileDownloader(mock_synd, output_dir='.')
+        downloader.download_history = {
+            '123': {
+                'hash': 'old-hash',
+                'path': 'path/to/test.osheet',
+                'output_path': './test.xlsx',
+                'download_time': '2023-01-01 12:00:00'
+            }
+        }
+
+        # Process a document that's in history but with a new hash
+        downloader._process_document('123', 'path/to/test.osheet', 'new-hash')
+
+        # Verify that download was attempted
+        mock_synd.download_synology_office_file.assert_called_once_with('123')
+        mock_save.assert_called_once()
+
+        # Verify that the history was updated with the new hash
+        self.assertEqual(downloader.download_history['123']['hash'], 'new-hash')
+
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_download_history_saves_new_files(self, mock_save):
+        """Test that new files are added to download history."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+        mock_synd.download_synology_office_file.return_value = BytesIO(b'new file data')
+
+        # Create downloader instance with empty history
+        downloader = OfficeFileDownloader(mock_synd, output_dir='.')
+        downloader.download_history = {}
+
+        # Process a new document
+        downloader._process_document('456', 'path/to/new.osheet', 'new-file-hash')
+
+        # Verify that download was attempted
+        mock_synd.download_synology_office_file.assert_called_once_with('456')
+        mock_save.assert_called_once()
+
+        # Verify that the new file was added to history
+        self.assertIn('456', downloader.download_history)
+        self.assertEqual(downloader.download_history['456']['hash'], 'new-file-hash')
+        self.assertEqual(downloader.download_history['456']['path'], 'path/to/new.osheet')
+
+    @patch('json.load')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('os.path.exists')
+    def test_load_download_history(self, mock_exists, mock_open, mock_json_load):
+        """Test that download history is correctly loaded from file."""
+        # Set up mocks
+        mock_exists.return_value = True
+        mock_json_load.return_value = {
+            '123': {'hash': 'abc123', 'path': 'test.osheet'},
+            '456': {'hash': 'def456', 'path': 'test2.osheet'}
+        }
+
+        # Create downloader instance
+        downloader = OfficeFileDownloader(MagicMock(), output_dir='/test/dir')
+
+        # _load_download_history is called in __init__, verify it worked
+        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
+        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
+        mock_json_load.assert_called_once()
+
+        # Verify history was loaded correctly
+        self.assertEqual(len(downloader.download_history), 2)
+        self.assertEqual(downloader.download_history['123']['hash'], 'abc123')
+
+    @patch('json.dump')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('os.makedirs')
+    def test_save_download_history(self, mock_makedirs, mock_open, mock_json_dump):
+        """Test that download history is correctly saved to file."""
+        # Create downloader instance with some history data
+        downloader = OfficeFileDownloader(MagicMock(), output_dir='/test/dir')
+        downloader.download_history = {
+            '123': {'hash': 'abc123', 'path': 'test.osheet'},
+            '456': {'hash': 'def456', 'path': 'test2.osheet'}
+        }
+
+        # Call save method
+        downloader._save_download_history()
+
+        # Verify file operations
+        mock_makedirs.assert_called_once_with('/test/dir', exist_ok=True)
+        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'w')
+        mock_json_dump.assert_called_once_with(downloader.download_history, mock_open())
+
+    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    @patch('office_file_downloader.OfficeFileDownloader._save_download_history')
+    @patch('office_file_downloader.OfficeFileDownloader._load_download_history')
+    def test_context_manager(self, mock_load, mock_save, mock_process):
+        """Test that context manager loads and saves download history."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+
+        # Use context manager
+        with OfficeFileDownloader(mock_synd, output_dir='/test/dir') as downloader:
+            # In the context, _load_download_history should have been called already
+            mock_load.assert_called_once()
+            mock_save.assert_not_called()  # Not called yet
+
+            # Do something with the downloader
+            downloader.download_mydrive_files()
+
+        # After the context, _save_download_history should have been called
+        mock_save.assert_called_once()
+        mock_process.assert_called_once()
 
 
 if __name__ == '__main__':

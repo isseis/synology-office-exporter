@@ -49,6 +49,8 @@ import os
 import sys
 import argparse
 from typing import Optional
+import json
+from datetime import datetime
 
 from dotenv import load_dotenv
 from synology_drive_ex import SynologyDriveEx
@@ -67,12 +69,36 @@ class OfficeFileDownloader:
     def __init__(self, synd: SynologyDriveEx, output_dir: str = '.'):
         self.synd = synd
         self.output_dir = output_dir
+        self.download_history_file = os.path.join(output_dir, '.download_history.json')
+        self.download_history = {}
+        self._load_download_history()
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
-        pass
+        self._save_download_history()
+
+    def _load_download_history(self):
+        """Load the download history from a JSON file."""
+        try:
+            if os.path.exists(self.download_history_file):
+                with open(self.download_history_file, 'r') as f:
+                    self.download_history = json.load(f)
+                logging.info(f"Loaded download history for {len(self.download_history)} files")
+        except Exception as e:
+            logging.error(f"Error loading download history: {e}")
+            self.download_history = {}
+
+    def _save_download_history(self):
+        """Save the download history to a JSON file."""
+        try:
+            os.makedirs(os.path.dirname(self.download_history_file), exist_ok=True)
+            with open(self.download_history_file, 'w') as f:
+                json.dump(self.download_history, f)
+            logging.info(f"Saved download history for {len(self.download_history)} files")
+        except Exception as e:
+            logging.error(f"Error saving download history: {e}")
 
     def download_mydrive_files(self):
         logging.info('Downloading My Drive files...')
@@ -108,6 +134,7 @@ class OfficeFileDownloader:
             file_id = item['file_id']
             display_path = item.get('display_path', item.get('name'))
             content_type = item['content_type']
+            hash = item.get('hash')
 
             if content_type == 'dir':
                 self._process_directory(file_id, display_path)
@@ -115,7 +142,7 @@ class OfficeFileDownloader:
                 if item.get('encrypted'):
                     logging.info(f'Skipping encrypted file: {display_path}')
                     return
-                self._process_document(file_id, display_path)
+                self._process_document(file_id, display_path, hash)
         except Exception as e:
             logging.error(f"Error processing item {item.get('name')}: {e}")
 
@@ -133,9 +160,22 @@ class OfficeFileDownloader:
         except Exception as e:
             logging.error(f'Error processing directory {dir_name}: {e}')
 
-    def _process_document(self, file_id: str, display_path: str):
+    def _process_document(self, file_id: str, display_path: str, hash: str):
+        """
+        Process and download a Synology Office document.
+
+        Args:
+            file_id: The ID of the file to download
+            display_path: The display path of the file
+            hash: The hash of the file to track changes
+        """
         logging.info(f'Processing {display_path}')
         try:
+            # Check if file is already downloaded and unchanged
+            if file_id in self.download_history and self.download_history[file_id]['hash'] == hash:
+                logging.info(f'Skipping already downloaded file: {display_path}')
+                return
+
             offline_name = self.get_offline_name(display_path)
             if not offline_name:
                 logging.debug(f'Skipping non-Synology Office file: {display_path}')
@@ -150,6 +190,14 @@ class OfficeFileDownloader:
             logging.info(f'Downloading {display_path} => {output_path}')
             data = self.synd.download_synology_office_file(file_id)
             self.save_bytesio_to_file(data, output_path)
+
+            # Save download info to history
+            self.download_history[file_id] = {
+                'hash': hash,
+                'path': display_path,
+                'output_path': output_path,
+                'download_time': str(datetime.now())
+            }
         except Exception as e:
             logging.error(f'Error downloading document {display_path}: {e}')
 
