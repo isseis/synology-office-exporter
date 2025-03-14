@@ -1,4 +1,43 @@
 #! /usr/bin/python3
+"""
+Synology Office File Export Tool
+
+This script enables users to download and convert Synology Office files to their
+Microsoft Office equivalents. It connects to a Synology NAS using credentials stored
+in environment variables and processes shared files.
+
+File conversions performed:
+- Synology Spreadsheet (.osheet) -> Microsoft Excel (.xlsx)
+- Synology Document (.odoc) -> Microsoft Word (.docx)
+- Synology Slides (.oslides) -> Microsoft PowerPoint (.pptx)
+
+Requirements:
+- Python 3.6+
+- synology-drive-ex package
+- python-dotenv package
+
+Setup:
+1. Create a .env file with the following variables:
+   SYNOLOGY_NAS_USER=your_username
+   SYNOLOGY_NAS_PASS=your_password
+   SYNOLOGY_NAS_HOST=your_nas_ip_or_hostname
+
+Usage:
+  python drive_export.py [options]
+
+Options:
+  --log-level {debug,info,warning,error,critical}
+                        Set the logging level (default: info)
+  --output-dir DIRECTORY, -o DIRECTORY
+                        Directory where files will be saved (default: current directory)
+  --help                Show this help message and exit
+
+The tool will:
+1. Connect to the Synology NAS using credentials from the .env file
+2. Process all files shared with the authenticated user
+3. Download Synology Office files and convert them to Microsoft Office format
+4. Save the converted files to the specified output directory
+"""
 
 from io import BytesIO
 import logging
@@ -20,19 +59,10 @@ LOG_LEVELS = {
 }
 
 
-# Write the contents of a BytesIO object to a file
-def save_bytesio_to_file(data: BytesIO, filename: str):
-    # Reset pointer to the beginning
-    data.seek(0)
-
-    # Open file in binary mode and write data
-    with open(filename, 'wb') as f:
-        f.write(data.getvalue())
-
-
-class OfficeFileFetcher:
-    def __init__(self, synd: SynologyDriveEx):
+class OfficeFileDownloader:
+    def __init__(self, synd: SynologyDriveEx, output_dir: str = '.'):
         self.synd = synd
+        self.output_dir = output_dir
 
     def __enter__(self):
         return self
@@ -75,9 +105,15 @@ class OfficeFileFetcher:
             logging.info(f'Skipping non-Synology Office file: {display_path}')
             return
 
-        logging.info(f'Downloading {display_path} => {offline_name}')
+        # Convert absolute path to relative by removing leading slashes
+        offline_name = offline_name.lstrip('/')
+
+        # Create full path with output directory
+        output_path = os.path.join(self.output_dir, offline_name)
+
+        logging.info(f'Downloading {display_path} => {output_path}')
         data = self.synd.download_synology_office_file(file_id)
-        save_bytesio_to_file(data, offline_name.replace('/', '_'))
+        self.save_bytesio_to_file(data, output_path)
 
     @staticmethod
     def get_offline_name(name: str) -> Optional[str]:
@@ -106,6 +142,16 @@ class OfficeFileFetcher:
                 return name[: -len(ext)] + new_ext
         return None
 
+    @staticmethod
+    def save_bytesio_to_file(data: BytesIO, path: str):
+        """
+        Save the contents of a BytesIO object to a file.
+        """
+        data.seek(0)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'wb') as f:
+            f.write(data.getvalue())
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description='Tool to export Synology Office files')
@@ -114,6 +160,12 @@ def main() -> int:
         default='info',
         choices=LOG_LEVELS.keys(),
         help='Set the logging level (default: info)'
+    )
+    parser.add_argument(
+        '--output-dir',
+        '-o',
+        default='.',
+        help='Directory where files will be saved (default: current directory)'
     )
     args = parser.parse_args()
 
@@ -125,6 +177,7 @@ def main() -> int:
 
     # Load .env file
     load_dotenv()
+
     nas_user = os.getenv('SYNOLOGY_NAS_USER')
     nas_pass = os.getenv('SYNOLOGY_NAS_PASS')
     nas_host = os.getenv('SYNOLOGY_NAS_HOST')
@@ -142,8 +195,8 @@ def main() -> int:
 
     # default http port is 5000, https is 5001.
     with SynologyDriveEx(nas_user, nas_pass, nas_host, dsm_version='7') as synd:
-        with OfficeFileFetcher(synd) as off:
-            off.download_shared_files()
+        with OfficeFileDownloader(synd, args.output_dir) as ofd:
+            ofd.download_shared_files()
     return 0
 
 

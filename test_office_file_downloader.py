@@ -5,8 +5,8 @@ import os
 from drive_export import OfficeFileDownloader, SynologyDriveEx
 
 
-class TestOfficeFileFetcher(unittest.TestCase):
-    @patch('drive_export.save_bytesio_to_file')
+class TestOfficeFileDownloader(unittest.TestCase):
+    @patch('drive_export.OfficeFileDownloader.save_bytesio_to_file')
     def test_execute(self, mock_save_bytesio_to_file):
         # Mock SynologyDriveEx
         mock_synd = MagicMock(spec=SynologyDriveEx)
@@ -36,7 +36,7 @@ class TestOfficeFileFetcher(unittest.TestCase):
         # Check if save_bytesio_to_file was called with correct parameters
         args, kwargs = mock_save_bytesio_to_file.call_args
         self.assertEqual(args[0].getvalue(), b'test data')
-        self.assertEqual(os.path.basename(args[1]), 'path_to_test.xlsx')
+        self.assertEqual(os.path.basename(args[1]), 'test.xlsx')
 
         # Check if download_synology_office_file was called correctly
         mock_synd.download_synology_office_file.assert_called_once_with('123')
