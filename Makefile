@@ -1,7 +1,7 @@
 .PHONY: run test lint
 
 run:
-	python3 office_file_downloader.py --log-level info -o out
+	python3 main.py -o out $(ARGS)
 
 test:
 	python3 -m unittest discover -s . -p 'test_*.py'

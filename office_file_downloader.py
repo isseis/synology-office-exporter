@@ -1,58 +1,34 @@
 #! /usr/bin/python3
 """
-Synology Office File Export Tool
+Synology Office File Export Tool - Library
 
-This script enables users to download and convert Synology Office files to their
-Microsoft Office equivalents. It connects to a Synology NAS using credentials stored
-in environment variables and processes files from shared folders, team folders, and personal drives.
+This module provides the core functionality to download and convert Synology Office files to their
+Microsoft Office equivalents. It connects to a Synology NAS and processes files from shared folders,
+team folders, and personal drives.
 
 File conversions performed:
 - Synology Spreadsheet (.osheet) -> Microsoft Excel (.xlsx)
 - Synology Document (.odoc) -> Microsoft Word (.docx)
 - Synology Slides (.oslides) -> Microsoft PowerPoint (.pptx)
 
+This is a library module. For command-line usage, please use main.py.
+
 Requirements:
 - Python 3.6+
 - synology-drive-ex package
-- python-dotenv package
+- python-dotenv package (for main.py)
 
-Setup:
-1. Create a .env file with the following variables:
-   SYNOLOGY_NAS_USER=your_username
-   SYNOLOGY_NAS_PASS=your_password
-   SYNOLOGY_NAS_HOST=your_nas_ip_or_hostname
-
-Usage:
-  python office_file_downloader.py [options]
-
-Options:
-  --log-level {debug,info,warning,error,critical}
-                        Set the logging level (default: info)
-  --output-dir DIRECTORY, -o DIRECTORY
-                        Directory where files will be saved (default: current directory)
-  --help                Show this help message and exit
-
-The tool will:
-1. Connect to the Synology NAS using credentials from the .env file
-2. Process files from:
-   - Your personal My Drive
-   - Team folders you have access to
-   - Files shared with you by other users
-3. Download Synology Office files and convert them to Microsoft Office format
-4. Save the converted files to the specified output directory, preserving the folder structure
-5. Skip encrypted files (which cannot be automatically converted)
+See main.py for command line usage instructions.
 """
 
 from io import BytesIO
 import logging
 import os
 import sys
-import argparse
 from typing import Optional
 import json
 from datetime import datetime
 
-from dotenv import load_dotenv
 from synology_drive_ex import SynologyDriveEx
 
 # Mapping of log level strings to actual log levels
@@ -66,11 +42,12 @@ LOG_LEVELS = {
 
 
 class OfficeFileDownloader:
-    def __init__(self, synd: SynologyDriveEx, output_dir: str = '.'):
+    def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False):
         self.synd = synd
         self.output_dir = output_dir
         self.download_history_file = os.path.join(output_dir, '.download_history.json')
         self.download_history = {}
+        self.force_download = force_download
         self._load_download_history()
 
     def __enter__(self):
@@ -147,7 +124,7 @@ class OfficeFileDownloader:
             logging.error(f"Error processing item {item.get('name')}: {e}")
 
     def _process_directory(self, file_id: str, dir_name: str):
-        logging.info(f'Processing directory: {dir_name}')
+        logging.debug(f'Processing directory: {dir_name}')
 
         try:
             resp = self.synd.list_folder(file_id)
@@ -169,10 +146,11 @@ class OfficeFileDownloader:
             display_path: The display path of the file
             hash: The hash of the file to track changes
         """
-        logging.info(f'Processing {display_path}')
+        logging.debug(f'Processing {display_path}')
         try:
             # Check if file is already downloaded and unchanged
-            if file_id in self.download_history and self.download_history[file_id]['hash'] == hash:
+            if not self.force_download and (file_id in self.download_history
+                                            and self.download_history[file_id]['hash'] == hash):
                 logging.info(f'Skipping already downloaded file: {display_path}')
                 return
 
@@ -239,54 +217,8 @@ class OfficeFileDownloader:
             f.write(data.getvalue())
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description='Tool to export Synology Office files')
-    parser.add_argument(
-        '--log-level',
-        default='info',
-        choices=LOG_LEVELS.keys(),
-        help='Set the logging level (default: info)'
-    )
-    parser.add_argument(
-        '--output-dir',
-        '-o',
-        default='.',
-        help='Directory where files will be saved (default: current directory)'
-    )
-    args = parser.parse_args()
-
-    # Configure logging
-    logging.basicConfig(
-        level=LOG_LEVELS[args.log_level],
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-    )
-
-    # Load .env file
-    load_dotenv()
-
-    nas_user = os.getenv('SYNOLOGY_NAS_USER')
-    nas_pass = os.getenv('SYNOLOGY_NAS_PASS')
-    nas_host = os.getenv('SYNOLOGY_NAS_HOST')
-
-    # Check if all required environment variables are set
-    missing = [var for var, val in [('SYNOLOGY_NAS_USER', nas_user),
-                                    ('SYNOLOGY_NAS_PASS', nas_pass),
-                                    ('SYNOLOGY_NAS_HOST', nas_host)] if not val]
-    if missing:
-        logging.error(f"Environment variables not set: {', '.join(missing)}")
-        logging.error('Please set the following variables in your .env file and try again:')
-        for var in missing:
-            logging.error(f"  {var}=value")
-        return 1
-
-    # default http port is 5000, https is 5001.
-    with SynologyDriveEx(nas_user, nas_pass, nas_host, dsm_version='7') as synd:
-        with OfficeFileDownloader(synd, args.output_dir) as ofd:
-            ofd.download_mydrive_files()
-            ofd.download_teamfolder_files()
-            ofd.download_shared_files()
-    return 0
-
-
 if __name__ == '__main__':
-    sys.exit(main())
+    # main.pyを使うよう促す
+    print("This file is a library. Please use main.py to run the program.")
+    print("Example: python main.py --help")
+    sys.exit(1)

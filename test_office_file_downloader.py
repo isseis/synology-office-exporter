@@ -431,6 +431,32 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_save.assert_called_once()
         mock_process.assert_called_once()
 
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_force_download_ignores_history(self, mock_save):
+        """Test that force_download option downloads files regardless of history."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+        mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
+
+        # Create downloader instance with force_download=True and set up download history
+        downloader = OfficeFileDownloader(mock_synd, output_dir='.', force_download=True)
+        downloader.download_history = {
+            '123': {
+                'hash': 'abc123',
+                'path': 'path/to/test.osheet',
+                'output_path': './test.xlsx',
+                'download_time': '2023-01-01 12:00:00'
+            }
+        }
+
+        # Process a document that's already in the history with the same hash
+        # Even though it's in history with same hash, force_download should cause a redownload
+        downloader._process_document('123', 'path/to/test.osheet', 'abc123')
+
+        # Verify that download was attempted despite being in history
+        mock_synd.download_synology_office_file.assert_called_once_with('123')
+        mock_save.assert_called_once()
+
 
 if __name__ == '__main__':
     unittest.main()
