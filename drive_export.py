@@ -45,13 +45,17 @@ class OfficeFileFetcher:
         if not resp['success']:
             raise Exception('list folder failed.')
         for item in resp['data']['items']:
-            if item['content_type'] == 'dir':
-                self._process_directory(item['file_id'])
-            elif item['content_type'] == 'document':
-                logging.debug(f'Processing {item["display_path"]}')
+            file_id = item['file_id']
+            display_path = item['display_path']
+            content_type = item['content_type']
+
+            if content_type == 'dir':
+                self._process_directory(file_id, display_path)
+            elif content_type == 'document':
+                logging.debug(f'Processing {display_path}')
                 if item['encrypted']:
-                    logging.info(f'Skipping encrypted file: {item["display_path"]}')
-                self._process_document(item['file_id'], item['display_path'])
+                    logging.info(f'Skipping encrypted file: {display_path}')
+                self._process_document(file_id, display_path)
 
     def _process_directory(self, file_id: str, display_path: str):
         logging.info(f'Processing directory: {display_path}')
@@ -114,13 +118,23 @@ def main() -> int:
 
     # Load .env file
     load_dotenv()
+    nas_user = os.getenv('SYNOLOGY_NAS_USER')
+    nas_pass = os.getenv('SYNOLOGY_NAS_PASS')
+    nas_host = os.getenv('SYNOLOGY_NAS_HOST')
 
-    NAS_USER = os.getenv('SYNOLOGY_NAS_USER')
-    NAS_PASS = os.getenv('SYNOLOGY_NAS_PASS')
-    NAS_IP = os.getenv('SYNOLOGY_NAS_IP')
+    # Check if all required environment variables are set
+    missing = [var for var, val in [('SYNOLOGY_NAS_USER', nas_user),
+                                    ('SYNOLOGY_NAS_PASS', nas_pass),
+                                    ('SYNOLOGY_NAS_HOST', nas_host)] if not val]
+    if missing:
+        logging.error(f"Environment variables not set: {', '.join(missing)}")
+        logging.error("Please set the following variables in your .env file and try again:")
+        for var in missing:
+            logging.error(f"  {var}=value")
+        return 1
 
     # default http port is 5000, https is 5001.
-    with SynologyDriveEx(NAS_USER, NAS_PASS, NAS_IP, dsm_version='7') as synd:
+    with SynologyDriveEx(nas_user, nas_pass, nas_host, dsm_version='7') as synd:
         for item in synd.shared_with_me():
             file_id = item['file_id']
             with OfficeFileFetcher(synd) as off:
