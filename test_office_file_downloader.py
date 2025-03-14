@@ -2,12 +2,12 @@ import unittest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
 import os
-from drive_export import OfficeFileDownloader, SynologyDriveEx
+from office_file_downloader import OfficeFileDownloader, SynologyDriveEx
 
 
 class TestOfficeFileDownloader(unittest.TestCase):
-    @patch('drive_export.OfficeFileDownloader.save_bytesio_to_file')
-    def test_execute(self, mock_save_bytesio_to_file):
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_process_document(self, mock_save_bytesio_to_file):
         # Mock SynologyDriveEx
         mock_synd = MagicMock(spec=SynologyDriveEx)
 
@@ -28,10 +28,8 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
         # Create OfficeFileDownloader instance with test output directory
-        fetcher = OfficeFileDownloader(mock_synd, output_dir='.')
-
-        # Call _process_document directly instead of nonexistent _process method
-        fetcher._process_document('123', 'path/to/test.osheet')
+        downloader = OfficeFileDownloader(mock_synd, output_dir='.')
+        downloader._process_document('123', 'path/to/test.osheet')
 
         # Check if save_bytesio_to_file was called with correct parameters
         args, kwargs = mock_save_bytesio_to_file.call_args
