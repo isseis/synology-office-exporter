@@ -71,14 +71,22 @@ class OfficeFileDownloader:
         pass
 
     def download_shared_files(self):
+        logging.info('Downloading shared files...')
         for item in self.synd.shared_with_me():
             file_id = item['file_id']
             display_path = item['name']
             content_type = item['content_type']
-            if content_type != 'dir':
-                logging.warning(f'Skipping non-directory item under shared_with_me: {display_path}')
-                continue
-            self._process_directory(file_id, display_path)
+            if content_type == 'dir':
+                self._process_directory(file_id, display_path)
+            if content_type == 'document':
+                if item['encrypted']:
+                    logging.info(f'Skipping encrypted file: {display_path}')
+                self._process_document(file_id, display_path)
+
+    def download_teamfolder_files(self):
+        logging.info('Downloading team folder files...')
+        for name, file_id in self.synd.get_teamfolder_info().items():
+            self._process_directory(file_id, name)
 
     def _process_directory(self, file_id: str, dir_name: str):
         logging.info(f'Processing directory: {dir_name}')
@@ -94,12 +102,12 @@ class OfficeFileDownloader:
             if content_type == 'dir':
                 self._process_directory(file_id, display_path)
             elif content_type == 'document':
-                logging.debug(f'Processing {display_path}')
                 if item['encrypted']:
                     logging.info(f'Skipping encrypted file: {display_path}')
                 self._process_document(file_id, display_path)
 
     def _process_document(self, file_id: str, display_path: str):
+        logging.debug(f'Processing {display_path}')
         offline_name = self.get_offline_name(display_path)
         if not offline_name:
             logging.info(f'Skipping non-Synology Office file: {display_path}')
@@ -196,6 +204,7 @@ def main() -> int:
     # default http port is 5000, https is 5001.
     with SynologyDriveEx(nas_user, nas_pass, nas_host, dsm_version='7') as synd:
         with OfficeFileDownloader(synd, args.output_dir) as ofd:
+            ofd.download_teamfolder_files()
             ofd.download_shared_files()
     return 0
 
