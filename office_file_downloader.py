@@ -218,7 +218,6 @@ class OfficeFileDownloader:
 
 
 if __name__ == '__main__':
-    # main.pyを使うよう促す
     print("This file is a library. Please use main.py to run the program.")
     print("Example: python main.py --help")
     sys.exit(1)
