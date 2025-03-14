@@ -1,7 +1,8 @@
 import unittest
 from unittest.mock import patch, MagicMock
 from io import BytesIO
-from drive_export import OfficeFileFetcher, SynologyDriveEx
+import os
+from drive_export import OfficeFileDownloader, SynologyDriveEx
 
 
 class TestOfficeFileFetcher(unittest.TestCase):
@@ -26,28 +27,27 @@ class TestOfficeFileFetcher(unittest.TestCase):
         # Mock download_synology_office_file response
         mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
-        # Create OfficeFileFetcher instance
-        fetcher = OfficeFileFetcher(mock_synd)
+        # Create OfficeFileDownloader instance with test output directory
+        fetcher = OfficeFileDownloader(mock_synd, output_dir='.')
 
-        # Execute with test data
-        fetcher._process('owner', 'dir', 'file_id')
+        # Call _process_document directly instead of nonexistent _process method
+        fetcher._process_document('123', 'path/to/test.osheet')
 
         # Check if save_bytesio_to_file was called with correct parameters
         args, kwargs = mock_save_bytesio_to_file.call_args
         self.assertEqual(args[0].getvalue(), b'test data')
-        self.assertEqual(args[1], 'owner_dir_test.xlsx')
+        self.assertEqual(os.path.basename(args[1]), 'path_to_test.xlsx')
 
-        # Check if list_folder and download_synology_office_file were called correctly
-        mock_synd.list_folder.assert_called_once_with('file_id')
+        # Check if download_synology_office_file was called correctly
         mock_synd.download_synology_office_file.assert_called_once_with('123')
 
     def test_get_offline_name(self):
         # Synology office のファイルの場合 MS Office 拡張子に変換する。
-        self.assertEqual(OfficeFileFetcher.get_offline_name('test.osheet'), 'test.xlsx')
-        self.assertEqual(OfficeFileFetcher.get_offline_name('test.odoc'), 'test.docx')
-        self.assertEqual(OfficeFileFetcher.get_offline_name('test.oslides'), 'test.pptx')
+        self.assertEqual(OfficeFileDownloader.get_offline_name('test.osheet'), 'test.xlsx')
+        self.assertEqual(OfficeFileDownloader.get_offline_name('test.odoc'), 'test.docx')
+        self.assertEqual(OfficeFileDownloader.get_offline_name('test.oslides'), 'test.pptx')
         # それ以外の場合は None を返す。
-        self.assertIsNone(OfficeFileFetcher.get_offline_name('test.txt'))
+        self.assertIsNone(OfficeFileDownloader.get_offline_name('test.txt'))
 
 
 if __name__ == '__main__':
