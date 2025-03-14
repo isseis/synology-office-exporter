@@ -4,18 +4,28 @@ from io import BytesIO
 import logging
 import os
 import sys
+import argparse
 from typing import Optional
 
 from dotenv import load_dotenv
 from synology_drive_ex import SynologyDriveEx
 
+# Mapping of log level strings to actual log levels
+LOG_LEVELS = {
+    'debug': logging.DEBUG,
+    'info': logging.INFO,
+    'warning': logging.WARNING,
+    'error': logging.ERROR,
+    'critical': logging.CRITICAL
+}
 
-# BytesIO オブジェクトの内容をファイルに書き込む
+
+# Write the contents of a BytesIO object to a file
 def save_bytesio_to_file(data: BytesIO, filename: str):
-    # ポインタを先頭に戻す
+    # Reset pointer to the beginning
     data.seek(0)
 
-    # バイナリモードでファイルを開いて書き込む
+    # Open file in binary mode and write data
     with open(filename, 'wb') as f:
         f.write(data.getvalue())
 
@@ -36,12 +46,17 @@ class OfficeFileFetcher:
             raise Exception('list folder failed.')
         for item in resp['data']['items']:
             if item['content_type'] == 'dir':
-                pass
-            if item['content_type'] == 'document':
+                self._process_directory(item['file_id'])
+            elif item['content_type'] == 'document':
                 logging.debug(f'Processing {item["display_path"]}')
                 if item['encrypted']:
                     logging.info(f'Skipping encrypted file: {item["display_path"]}')
                 self._process_document(item['file_id'], item['display_path'])
+
+    def _process_directory(self, file_id: str, display_path: str):
+        logging.info(f'Processing directory: {display_path}')
+        # TODO: Implement directory handling
+        pass
 
     def _process_document(self, file_id: str, display_path: str):
         offline_name = self.get_offline_name(display_path)
@@ -82,11 +97,22 @@ class OfficeFileFetcher:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description='Tool to export Synology Office files')
+    parser.add_argument(
+        '--log-level',
+        default='info',
+        choices=LOG_LEVELS.keys(),
+        help='Set the logging level (default: info)'
+    )
+    args = parser.parse_args()
+
+    # Configure logging
     logging.basicConfig(
-        level=logging.INFO,
+        level=LOG_LEVELS[args.log_level],
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
     )
-    # .envファイルの読み込み
+
+    # Load .env file
     load_dotenv()
 
     NAS_USER = os.getenv('SYNOLOGY_NAS_USER')
