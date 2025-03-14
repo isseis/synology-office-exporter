@@ -30,7 +30,7 @@ class TestOfficeFileFetcher(unittest.TestCase):
         fetcher = OfficeFileFetcher(mock_synd)
 
         # Execute with test data
-        fetcher.execute('owner', 'dir', 'file_id')
+        fetcher._process('owner', 'dir', 'file_id')
 
         # Check if save_bytesio_to_file was called with correct parameters
         args, kwargs = mock_save_bytesio_to_file.call_args

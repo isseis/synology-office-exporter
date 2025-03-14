@@ -40,7 +40,19 @@ class OfficeFileFetcher:
     def __exit__(self, exc_type, exc_value, traceback):
         pass
 
-    def execute(self, file_id: str):
+    def download_shared_files(self):
+        for item in self.synd.shared_with_me():
+            file_id = item['file_id']
+            display_path = item['name']
+            content_type = item['content_type']
+            if content_type != 'dir':
+                logging.warning(f'Skipping non-directory item under shared_with_me: {display_path}')
+                continue
+            self._process_directory(file_id, display_path)
+
+    def _process_directory(self, file_id: str, dir_name: str):
+        logging.info(f'Processing directory: {dir_name}')
+
         resp = self.synd.list_folder(file_id)
         if not resp['success']:
             raise Exception('list folder failed.')
@@ -56,11 +68,6 @@ class OfficeFileFetcher:
                 if item['encrypted']:
                     logging.info(f'Skipping encrypted file: {display_path}')
                 self._process_document(file_id, display_path)
-
-    def _process_directory(self, file_id: str, display_path: str):
-        logging.info(f'Processing directory: {display_path}')
-        # TODO: Implement directory handling
-        pass
 
     def _process_document(self, file_id: str, display_path: str):
         offline_name = self.get_offline_name(display_path)
@@ -135,12 +142,8 @@ def main() -> int:
 
     # default http port is 5000, https is 5001.
     with SynologyDriveEx(nas_user, nas_pass, nas_host, dsm_version='7') as synd:
-        for item in synd.shared_with_me():
-            file_id = item['file_id']
-            with OfficeFileFetcher(synd) as off:
-                off.execute(file_id)
-
-        # print(synd.list_folder('871932547865555615'))
+        with OfficeFileFetcher(synd) as off:
+            off.download_shared_files()
     return 0
 
 
