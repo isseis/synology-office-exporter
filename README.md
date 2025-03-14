@@ -28,7 +28,40 @@ cd synology-tools
 Use the following command to install the required dependencies:
 
 ```bash
-pip3 install -r requirements/prod.txt
+pip install -r requirements/prod.txt
+```
+
+#### Install in Development Mode
+
+```bash
+pip install -e .  -r requirements/dev.txt
+```
+
+This installs the package in "editable" mode, allowing you to make changes to the code without reinstalling.
+
+### Using pyproject.toml (Alternative Method)
+
+The project includes a `pyproject.toml` file for modern Python packaging. You can:
+
+#### Build the Package
+
+```bash
+pip install build
+python -m build
+```
+
+This creates both source distribution (`.tar.gz`) and wheel (`.whl`) files in the `dist/` directory.
+
+#### Install from the Built Package
+
+```bash
+pip install dist/synology_tools-0.1.0-py3-none-any.whl
+```
+
+After installation, you can run the tool using the command:
+
+```bash
+synology-office-downloader --help
 ```
 
 ## Configuration
@@ -46,7 +79,7 @@ SYNOLOGY_NAS_HOST=your_nas_ip_or_hostname
 ### Command Line
 
 ```bash
-python3 main.py [options]
+python main.py [options]
 ```
 
 ### Options
@@ -96,7 +129,7 @@ By default, files are saved in the `out` directory (specified in the Makefile).
 If you need administrator privileges, use the `--user` flag:
 
 ```bash
-pip3 install --user -r requirements/prod.txt
+pip install --user -r requirements/prod.txt
 ```
 
 ### Runtime Errors
