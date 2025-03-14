@@ -144,19 +144,144 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_process_document.assert_not_called()
         mock_process_directory.assert_not_called()
 
-        @patch('office_file_downloader.OfficeFileDownloader._process_directory')
-        def test_download_mydrive_files(self, mock_process_directory):
-            # Mock SynologyDriveEx
-            mock_synd = MagicMock(spec=SynologyDriveEx)
+    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    def test_download_mydrive_files(self, mock_process_directory):
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
 
-            # Create downloader instance
-            downloader = OfficeFileDownloader(mock_synd)
+        # Create downloader instance
+        downloader = OfficeFileDownloader(mock_synd)
 
-            # Call method to test
-            downloader.download_mydrive_files()
+        # Call method to test
+        downloader.download_mydrive_files()
 
-            # Verify _process_directory was called with the correct parameters
-            mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
+        # Verify _process_directory was called with the correct parameters
+        mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
+
+    @patch('office_file_downloader.OfficeFileDownloader._process_item')
+    def test_exception_handling_shared_files(self, mock_process_item):
+        """Test that the program continues downloading even if some files cause exceptions."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+
+        # Set up mock to have 3 files, with processing of the second one raising an exception
+        mock_synd.shared_with_me.return_value = [
+            {'file_id': '123', 'content_type': 'document', 'name': 'doc1'},
+            {'file_id': '456', 'content_type': 'dir', 'name': 'folder1'},
+            {'file_id': '789', 'content_type': 'document', 'name': 'doc2'}
+        ]
+
+        # Make the second file raise an exception when processed
+        def side_effect(item):
+            if item['file_id'] == '456':
+                raise Exception("Test error")
+            return None
+
+        mock_process_item.side_effect = side_effect
+
+        # Create downloader instance
+        downloader = OfficeFileDownloader(mock_synd)
+
+        # Call method to test
+        downloader.download_shared_files()
+
+        # Verify all items were attempted to be processed, despite the exception
+        self.assertEqual(mock_process_item.call_count, 3)
+        mock_process_item.assert_any_call({'file_id': '123', 'content_type': 'document', 'name': 'doc1'})
+        mock_process_item.assert_any_call({'file_id': '456', 'content_type': 'dir', 'name': 'folder1'})
+        mock_process_item.assert_any_call({'file_id': '789', 'content_type': 'document', 'name': 'doc2'})
+
+    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    def test_exception_handling_mydrive(self, mock_process_directory):
+        """Test that exceptions in _process_directory do not stop execution."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+
+        # Make _process_directory raise an exception
+        mock_process_directory.side_effect = Exception("Test error")
+
+        # Create downloader instance
+        downloader = OfficeFileDownloader(mock_synd)
+
+        # Call download_mydrive_files - this should not raise an exception
+        downloader.download_mydrive_files()
+
+        # Verify _process_directory was called with correct parameters
+        mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
+
+    @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+    def test_exception_handling_teamfolders(self, mock_process_directory):
+        """Test that exceptions in one team folder do not prevent processing other folders."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+
+        # Mock get_teamfolder_info response
+        mock_synd.get_teamfolder_info.return_value = {
+            'Team Folder 1': '111',
+            'Team Folder 2': '222',
+            'Team Folder 3': '333'
+        }
+
+        # Make processing of 'Team Folder 2' raise an exception
+        def side_effect(file_id, name):
+            if file_id == '222':
+                raise Exception("Test error")
+            return None
+
+        mock_process_directory.side_effect = side_effect
+
+        # Create downloader instance
+        downloader = OfficeFileDownloader(mock_synd)
+
+        # Call method to test
+        downloader.download_teamfolder_files()
+
+        # Verify all team folders were attempted to be processed
+        self.assertEqual(mock_process_directory.call_count, 3)
+        mock_process_directory.assert_any_call('111', 'Team Folder 1')
+        mock_process_directory.assert_any_call('222', 'Team Folder 2')
+        mock_process_directory.assert_any_call('333', 'Team Folder 3')
+
+    @patch('office_file_downloader.SynologyDriveEx.download_synology_office_file')
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_exception_handling_download(self, mock_save, mock_download):
+        """Test that exceptions during file download do not stop processing."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+
+        # Mock download to raise an exception
+        mock_download.side_effect = Exception("Download failed")
+
+        # Create downloader instance and test document
+        downloader = OfficeFileDownloader(mock_synd)
+
+        # This should not raise an exception out of the method
+        downloader._process_document('123', 'path/to/test.osheet')
+
+        # Verify download was attempted
+        mock_download.assert_called_once_with('123')
+        # Save should not have been called because download failed
+        mock_save.assert_not_called()
+
+    @patch('office_file_downloader.OfficeFileDownloader.save_bytesio_to_file')
+    def test_exception_handling_download(self, mock_save):
+        """Test that exceptions during file download do not stop processing."""
+        # Mock SynologyDriveEx
+        mock_synd = MagicMock(spec=SynologyDriveEx)
+
+        # Mock download_synology_office_file to raise an exception
+        mock_synd.download_synology_office_file.side_effect = Exception("Download failed")
+
+        # Create downloader instance and test document
+        downloader = OfficeFileDownloader(mock_synd)
+
+        # This should not raise an exception out of the method
+        downloader._process_document('123', 'path/to/test.osheet')
+
+        # Verify download was attempted
+        mock_synd.download_synology_office_file.assert_called_once_with('123')
+        # Save should not have been called because download failed
+        mock_save.assert_not_called()
 
 
 if __name__ == '__main__':
