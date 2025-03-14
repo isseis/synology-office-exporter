@@ -73,20 +73,25 @@ class OfficeFileDownloader:
     def download_shared_files(self):
         logging.info('Downloading shared files...')
         for item in self.synd.shared_with_me():
-            file_id = item['file_id']
-            display_path = item['name']
-            content_type = item['content_type']
-            if content_type == 'dir':
-                self._process_directory(file_id, display_path)
-            if content_type == 'document':
-                if item['encrypted']:
-                    logging.info(f'Skipping encrypted file: {display_path}')
-                self._process_document(file_id, display_path)
+            self._process_item(item)
 
     def download_teamfolder_files(self):
         logging.info('Downloading team folder files...')
         for name, file_id in self.synd.get_teamfolder_info().items():
             self._process_directory(file_id, name)
+
+    def _process_item(self, item):
+        file_id = item['file_id']
+        display_path = item.get('display_path', item.get('name'))
+        content_type = item['content_type']
+
+        if content_type == 'dir':
+            self._process_directory(file_id, display_path)
+        elif content_type == 'document':
+            if item.get('encrypted'):
+                logging.info(f'Skipping encrypted file: {display_path}')
+                return
+            self._process_document(file_id, display_path)
 
     def _process_directory(self, file_id: str, dir_name: str):
         logging.info(f'Processing directory: {dir_name}')
@@ -95,16 +100,7 @@ class OfficeFileDownloader:
         if not resp['success']:
             raise Exception('list folder failed.')
         for item in resp['data']['items']:
-            file_id = item['file_id']
-            display_path = item['display_path']
-            content_type = item['content_type']
-
-            if content_type == 'dir':
-                self._process_directory(file_id, display_path)
-            elif content_type == 'document':
-                if item['encrypted']:
-                    logging.info(f'Skipping encrypted file: {display_path}')
-                self._process_document(file_id, display_path)
+            self._process_item(item)
 
     def _process_document(self, file_id: str, display_path: str):
         logging.debug(f'Processing {display_path}')
