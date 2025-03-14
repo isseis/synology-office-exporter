@@ -76,56 +76,82 @@ class OfficeFileDownloader:
 
     def download_mydrive_files(self):
         logging.info('Downloading My Drive files...')
-        self._process_directory('/mydrive', 'My Drive')
+        try:
+            self._process_directory('/mydrive', 'My Drive')
+        except Exception as e:
+            logging.error(f'Error downloading My Drive files: {e}')
 
     def download_shared_files(self):
         logging.info('Downloading shared files...')
-        for item in self.synd.shared_with_me():
-            self._process_item(item)
+        try:
+            for item in self.synd.shared_with_me():
+                try:
+                    self._process_item(item)
+                except Exception as e:
+                    logging.error(f"Error processing shared item {item.get('name')}: {e}")
+        except Exception as e:
+            logging.error(f'Error accessing shared files: {e}')
 
     def download_teamfolder_files(self):
         logging.info('Downloading team folder files...')
-        for name, file_id in self.synd.get_teamfolder_info().items():
-            self._process_directory(file_id, name)
+        try:
+            for name, file_id in self.synd.get_teamfolder_info().items():
+                try:
+                    self._process_directory(file_id, name)
+                except Exception as e:
+                    logging.error(f'Error processing team folder {name}: {e}')
+        except Exception as e:
+            logging.error(f'Error accessing team folders: {e}')
 
     def _process_item(self, item):
-        file_id = item['file_id']
-        display_path = item.get('display_path', item.get('name'))
-        content_type = item['content_type']
+        try:
+            file_id = item['file_id']
+            display_path = item.get('display_path', item.get('name'))
+            content_type = item['content_type']
 
-        if content_type == 'dir':
-            self._process_directory(file_id, display_path)
-        elif content_type == 'document':
-            if item.get('encrypted'):
-                logging.info(f'Skipping encrypted file: {display_path}')
-                return
-            self._process_document(file_id, display_path)
+            if content_type == 'dir':
+                self._process_directory(file_id, display_path)
+            elif content_type == 'document':
+                if item.get('encrypted'):
+                    logging.info(f'Skipping encrypted file: {display_path}')
+                    return
+                self._process_document(file_id, display_path)
+        except Exception as e:
+            logging.error(f"Error processing item {item.get('name')}: {e}")
 
     def _process_directory(self, file_id: str, dir_name: str):
         logging.info(f'Processing directory: {dir_name}')
 
-        resp = self.synd.list_folder(file_id)
-        if not resp['success']:
-            raise Exception('list folder failed.')
-        for item in resp['data']['items']:
-            self._process_item(item)
+        try:
+            resp = self.synd.list_folder(file_id)
+            if not resp['success']:
+                logging.error(f"Failed to list folder {dir_name}: {resp.get('error')}")
+                return
+
+            for item in resp['data']['items']:
+                self._process_item(item)
+        except Exception as e:
+            logging.error(f'Error processing directory {dir_name}: {e}')
 
     def _process_document(self, file_id: str, display_path: str):
-        logging.debug(f'Processing {display_path}')
-        offline_name = self.get_offline_name(display_path)
-        if not offline_name:
-            logging.info(f'Skipping non-Synology Office file: {display_path}')
-            return
+        logging.info(f'Processing {display_path}')
+        try:
+            offline_name = self.get_offline_name(display_path)
+            if not offline_name:
+                logging.debug(f'Skipping non-Synology Office file: {display_path}')
+                return
 
-        # Convert absolute path to relative by removing leading slashes
-        offline_name = offline_name.lstrip('/')
+            # Convert absolute path to relative by removing leading slashes
+            offline_name = offline_name.lstrip('/')
 
-        # Create full path with output directory
-        output_path = os.path.join(self.output_dir, offline_name)
+            # Create full path with output directory
+            output_path = os.path.join(self.output_dir, offline_name)
 
-        logging.info(f'Downloading {display_path} => {output_path}')
-        data = self.synd.download_synology_office_file(file_id)
-        self.save_bytesio_to_file(data, output_path)
+            logging.info(f'Downloading {display_path} => {output_path}')
+            data = self.synd.download_synology_office_file(file_id)
+            self.save_bytesio_to_file(data, output_path)
+        except Exception as e:
+            logging.error(f'Error downloading document {display_path}: {e}')
 
     @staticmethod
     def get_offline_name(name: str) -> Optional[str]:
