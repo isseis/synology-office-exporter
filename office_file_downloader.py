@@ -4,7 +4,7 @@ Synology Office File Export Tool
 
 This script enables users to download and convert Synology Office files to their
 Microsoft Office equivalents. It connects to a Synology NAS using credentials stored
-in environment variables and processes shared files.
+in environment variables and processes files from shared folders, team folders, and personal drives.
 
 File conversions performed:
 - Synology Spreadsheet (.osheet) -> Microsoft Excel (.xlsx)
@@ -23,7 +23,7 @@ Setup:
    SYNOLOGY_NAS_HOST=your_nas_ip_or_hostname
 
 Usage:
-  python drive_export.py [options]
+  python office_file_downloader.py [options]
 
 Options:
   --log-level {debug,info,warning,error,critical}
@@ -34,9 +34,13 @@ Options:
 
 The tool will:
 1. Connect to the Synology NAS using credentials from the .env file
-2. Process all files shared with the authenticated user
+2. Process files from:
+   - Your personal My Drive
+   - Team folders you have access to
+   - Files shared with you by other users
 3. Download Synology Office files and convert them to Microsoft Office format
-4. Save the converted files to the specified output directory
+4. Save the converted files to the specified output directory, preserving the folder structure
+5. Skip encrypted files (which cannot be automatically converted)
 """
 
 from io import BytesIO
@@ -69,6 +73,10 @@ class OfficeFileDownloader:
 
     def __exit__(self, exc_type, exc_value, traceback):
         pass
+
+    def download_mydrive_files(self):
+        logging.info('Downloading My Drive files...')
+        self._process_directory('/mydrive', 'My Drive')
 
     def download_shared_files(self):
         logging.info('Downloading shared files...')
@@ -192,7 +200,7 @@ def main() -> int:
                                     ('SYNOLOGY_NAS_HOST', nas_host)] if not val]
     if missing:
         logging.error(f"Environment variables not set: {', '.join(missing)}")
-        logging.error("Please set the following variables in your .env file and try again:")
+        logging.error('Please set the following variables in your .env file and try again:')
         for var in missing:
             logging.error(f"  {var}=value")
         return 1
@@ -200,6 +208,7 @@ def main() -> int:
     # default http port is 5000, https is 5001.
     with SynologyDriveEx(nas_user, nas_pass, nas_host, dsm_version='7') as synd:
         with OfficeFileDownloader(synd, args.output_dir) as ofd:
+            ofd.download_mydrive_files()
             ofd.download_teamfolder_files()
             ofd.download_shared_files()
     return 0

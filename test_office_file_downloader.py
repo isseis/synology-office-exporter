@@ -144,6 +144,20 @@ class TestOfficeFileDownloader(unittest.TestCase):
         mock_process_document.assert_not_called()
         mock_process_directory.assert_not_called()
 
+        @patch('office_file_downloader.OfficeFileDownloader._process_directory')
+        def test_download_mydrive_files(self, mock_process_directory):
+            # Mock SynologyDriveEx
+            mock_synd = MagicMock(spec=SynologyDriveEx)
+
+            # Create downloader instance
+            downloader = OfficeFileDownloader(mock_synd)
+
+            # Call method to test
+            downloader.download_mydrive_files()
+
+            # Verify _process_directory was called with the correct parameters
+            mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
+
 
 if __name__ == '__main__':
     unittest.main()
