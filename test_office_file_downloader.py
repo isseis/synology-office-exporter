@@ -16,10 +16,15 @@ class TestOfficeFileDownloader(unittest.TestCase):
             'success': True,
             'data': {
                 'items': [
+                    # Folder should be skipped
+                    {'content_type': 'dir', 'encrypted': False, 'name': 'folder',
+                     'display_path': 'path/to/folder', 'file_id': '456'},
+                    # Office file should be processed
                     {'content_type': 'document', 'encrypted': False, 'name': 'test.osheet',
                      'display_path': 'path/to/test.osheet', 'file_id': '123'},
-                    {'content_type': 'dir', 'encrypted': False, 'name': 'folder',
-                     'display_path': 'path/to/folder', 'file_id': '456'}
+                    # PDF file shoud be skipped
+                    {'content_type': 'document', 'encrypted': False, 'name': 'test.pdf',
+                     'display_path': 'path/to/test.pdf', 'file_id': '789'}
                 ]
             }
         }
