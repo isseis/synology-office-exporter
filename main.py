@@ -3,7 +3,7 @@
 Synology Office File Export Tool - Main Entry Point
 
 This script provides a command-line interface for downloading and converting Synology Office files
-to Microsoft Office formats. It uses the OfficeFileDownloader class from office_file_downloader.py.
+to Microsoft Office formats. It uses the SynologyOfficeExporter class from office_file_downloader.py.
 
 Usage:
   python main.py [options]
@@ -34,7 +34,7 @@ import logging
 import os
 import sys
 from dotenv import load_dotenv
-from synology_office_exporter import OfficeFileDownloader, SynologyDriveEx
+from synology_office_exporter import SynologyOfficeExporter, SynologyDriveEx
 
 # office_file_downloader.pyからLOG_LEVELSを移植
 LOG_LEVELS = {
@@ -98,10 +98,10 @@ def main():
         # Connect to Synology Drive
         with SynologyDriveEx(username, password, server, dsm_version='7') as synd:
             # Create and use the downloader
-            with OfficeFileDownloader(synd, output_dir=args.output, force_download=args.force) as downloader:
-                downloader.download_mydrive_files()
-                downloader.download_shared_files()
-                downloader.download_teamfolder_files()
+            with SynologyOfficeExporter(synd, output_dir=args.output, force_download=args.force) as exporter:
+                exporter.download_mydrive_files()
+                exporter.download_shared_files()
+                exporter.download_teamfolder_files()
 
         logging.info("Done!")
         return 0

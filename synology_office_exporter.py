@@ -41,7 +41,7 @@ LOG_LEVELS = {
 }
 
 
-class OfficeFileDownloader:
+class SynologyOfficeExporter:
     def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False):
         self.synd = synd
         self.output_dir = output_dir
