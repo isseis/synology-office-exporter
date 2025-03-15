@@ -3,40 +3,33 @@ requires = ["wheel", "setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "synology-office-file-downloader"
+name = "synology-office-exporter"
 version = "0.1.0"
-description = "Tools for working with Synology NAS devices"
+description = "Tools for exporting Synology Office files from Synology NAS devices"
 readme = "README.md"
 authors = [{name = "Issei Suzuki"}]
 license = {text = "MIT"}
 classifiers = [
-    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.6",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
+    "Development Status :: 3 - Alpha",
 ]
 requires-python = ">=3.6"
 dependencies = [
-    "synology-drive-ex",
-    "python-dotenv",
+    "synology-drive-api>=1.0.15",
+    "python-dotenv>=0.19.0",
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/isseis/synology-tools"
-"Bug Tracker" = "https://github.com/isseis/synology-tools/issues"
+"Homepage" = "https://github.com/isseis/synology-office-exporter"
+"Bug Tracker" = "https://github.com/isseis/synology-office-exporter/issues"
 
 [project.scripts]
-synology-office-downloader = "main:main"
+synology-office-exporter = "main:main"
 
 [tool.setuptools]
-py-modules = ["office_file_downloader", "main"]
-
-[tool.black]
-line-length = 100
-target-version = ["py36", "py37", "py38", "py39"]
-
-[tool.isort]
-profile = "black"
-line_length = 100
+py-modules = ["synology_office_exporter", "synology_drive_ex", "main"]
 
 [tool.flake8]
 max-line-length = 100

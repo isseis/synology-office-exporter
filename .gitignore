@@ -1,2 +1,4 @@
 .env
 out/
+dist/
+synology_office_exporter.egg-info/

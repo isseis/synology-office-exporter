@@ -1,4 +1,4 @@
-# Synology Office File Downloader
+# Synology Office Exporter
 
 This tool downloads Synology Office files from your Synology NAS and converts them to Microsoft Office formats. It processes Synology Office documents from your personal My Drive, team folders, and shared files, converting them to their corresponding Microsoft Office formats.
 
@@ -19,8 +19,8 @@ This tool downloads Synology Office files from your Synology NAS and converts th
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/isseis/synology-tools.git
-cd synology-tools
+git clone https://github.com/isseis/synology-office-exporter.git
+cd synology-office-exporter
 ```
 
 ### Install Required Packages
