@@ -32,8 +32,8 @@ import getpass
 import logging
 import os
 from dotenv import load_dotenv
-from synology_office_exporter.synology_office_exporter import SynologyOfficeExporter
-from synology_office_exporter.synology_drive_ex import SynologyDriveEx
+from synology_office_exporter.exporter import SynologyOfficeExporter
+from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
 # office_file_downloader.pyからLOG_LEVELSを移植
 LOG_LEVELS = {

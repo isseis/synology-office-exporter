@@ -28,7 +28,7 @@ from typing import Optional
 import json
 from datetime import datetime
 
-from synology_office_exporter.synology_drive_ex import SynologyDriveEx
+from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
 # Mapping of log level strings to actual log levels
 LOG_LEVELS = {
