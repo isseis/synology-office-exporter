@@ -1,13 +1,26 @@
-.PHONY: run test lint clean
+.PHONY: run build install install-dev uninstall test lint clean
 
 run:
-	python3 main.py -o out $(ARGS)
+	python -m synology_office_exporter.main -o out $(ARGS)
+
+build:
+	pip install build
+	python -m build
+
+install:
+	pip install .
+
+install-dev:
+	pip install -e .
+
+uninstall:
+	pip uninstall synology-office-exporter
 
 test:
-	python3 -m unittest discover -s . -p 'test_*.py'
+	python -m unittest discover -s . -p 'test_*.py'
 
 lint:
-	python3 -m flake8 .
+	flake8 --config .flake8
 
 clean:
-	rm -rf dist synology_office_exporter.egg-info
+	rm -rf build dist synology_office_exporter.egg-info

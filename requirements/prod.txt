@@ -1,2 +1,0 @@
-# requirements for production
--r common.txt
