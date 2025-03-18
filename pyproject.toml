@@ -1,10 +1,10 @@
 [build-system]
-requires = ["wheel", "setuptools"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "synology-office-exporter"
-version = "0.1.0"
+dynamic = ["version"]
 description = "Tools for exporting Synology Office files from Synology NAS devices"
 readme = "README.md"
 authors = [{name = "Issei Suzuki"}]
@@ -21,16 +21,28 @@ dependencies = [
     "python-dotenv>=0.19.0",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "build",
+    "twine",
+    "flake8",
+]
+
 [project.urls]
 "Homepage" = "https://github.com/isseis/synology-office-exporter"
 "Bug Tracker" = "https://github.com/isseis/synology-office-exporter/issues"
 
 [project.scripts]
-synology-office-exporter = "main:main"
+synology-office-exporter = "synology_office_exporter.cli:main"
 
 [tool.setuptools]
-py-modules = ["synology_office_exporter", "synology_drive_ex", "main"]
+py-modules = ["synology-office-exporter"]
 
-[tool.flake8]
-max-line-length = 100
-exclude = [".git", "__pycache__", "build", "dist"]
+[tool.setuptools.packages.find]
+exclude = ["build", "tests"]
+
+[tool.setuptools.dynamic]
+version = {attr = "synology_office_exporter.version"}
+
+[tool.setuptools_scm]
+write_to = "synology_office_exporter/_version.py"

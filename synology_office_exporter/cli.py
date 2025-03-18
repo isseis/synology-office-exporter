@@ -1,4 +1,3 @@
-#!/usr/bin/python3
 """
 Synology Office File Export Tool - Main Entry Point
 
@@ -32,9 +31,9 @@ import argparse
 import getpass
 import logging
 import os
-import sys
 from dotenv import load_dotenv
-from synology_office_exporter import SynologyOfficeExporter, SynologyDriveEx
+from synology_office_exporter.synology_office_exporter import SynologyOfficeExporter
+from synology_office_exporter.synology_drive_ex import SynologyDriveEx
 
 # office_file_downloader.pyからLOG_LEVELSを移植
 LOG_LEVELS = {
@@ -108,7 +107,3 @@ def main():
     except Exception as e:
         logging.error(f"Error: {e}")
         return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

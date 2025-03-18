@@ -64,6 +64,14 @@ After installation, you can run the tool using the command:
 synology-office-downloader --help
 ```
 
+### MacOS
+
+In case you encounter error message like `ImportError: urllib3 v2.0 only supports OpenSSL 1.1.1+`, you can run the following command to fix this error.
+
+```bash
+pip install 'urllib3<2.0.0'
+```
+
 ## Configuration
 
 Create a `.env` file and set the following environment variables:
@@ -137,18 +145,6 @@ pip install --user -r requirements/prod.txt
 - `ModuleNotFoundError`: Ensure the required packages are installed correctly.
 - Connection errors: Check the NAS IP address and port settings. The default ports are 5000 for HTTP and 5001 for HTTPS.
 
-## License
-
-Copyright (c) 2025 Issei Suzuki
-
-Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the “Software”), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED “AS IS”, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-
-
 ## Acknowledgements
 
 - [Synology Drive API](https://github.com/zbjdonald/synology-drive-api) - Used for communication with the Synology Drive API
-
