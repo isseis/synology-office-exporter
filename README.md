@@ -23,53 +23,74 @@ git clone https://github.com/isseis/synology-office-exporter.git
 cd synology-office-exporter
 ```
 
-### Install Required Packages
+### Create virtual environment
+It's recommended to create Python virutal environment and run the tools inside it.
 
-Use the following command to install the required dependencies:
-
+For bash / zsh users:
 ```bash
-pip install -r requirements/prod.txt
+python -m venv .venv
+. .venv/bin/activate
+pip install --upgrade pip
 ```
 
-#### Install in Development Mode
+#### Mac users
 
-```bash
-pip install -e .  -r requirements/dev.txt
-```
+In case you encounter error message like `zsh: command not found: python`, you should run `python3 -m venv .venv` instead of `python -m venv .venv` in the commands above.
 
-This installs the package in "editable" mode, allowing you to make changes to the code without reinstalling.
-
-### Using pyproject.toml (Alternative Method)
+### Using pyproject.toml
 
 The project includes a `pyproject.toml` file for modern Python packaging. You can:
 
-#### Build the Package
+#### Build and install the package
 
 ```bash
-pip install build
-python -m build
-```
-
-This creates both source distribution (`.tar.gz`) and wheel (`.whl`) files in the `dist/` directory.
-
-#### Install from the Built Package
-
-```bash
-pip install dist/synology_tools-0.1.0-py3-none-any.whl
+pip install
 ```
 
 After installation, you can run the tool using the command:
 
 ```bash
-synology-office-downloader --help
+synology-office-exporter --help
 ```
 
-### MacOS
+## Development
 
-In case you encounter error message like `ImportError: urllib3 v2.0 only supports OpenSSL 1.1.1+`, you can run the following command to fix this error.
+You may skip this section if you just want to use this tool.
+
+### Install development packages
 
 ```bash
-pip install 'urllib3<2.0.0'
+pip install -e '.[dev]'
+```
+
+This installs packages used for development, and install this project in ediable mode.
+
+### Running Tests
+
+To run the tests manually:
+
+```bash
+make test
+```
+
+or
+
+```bash
+python -m unittest discover -s tests -p 'test_*.py'
+```
+
+### Linting
+
+To check code style with flake8:
+
+```bash
+make lint
+```
+
+or
+
+```bash
+flake8 --config .flake8
 ```
 
 ## Configuration
@@ -87,7 +108,13 @@ SYNOLOGY_NAS_HOST=your_nas_ip_or_hostname
 ### Command Line
 
 ```bash
-python main.py [options]
+python -m synology_office_exporter.main [options]
+```
+
+Or if installed:
+
+```bash
+synology-office-exporter [options]
 ```
 
 ### Options
@@ -131,14 +158,6 @@ By default, files are saved in the `out` directory (specified in the Makefile).
 - Subsequent runs will only download changed files (unless the `--force` option is used).
 
 ## Troubleshooting
-
-### Unable to Install Modules
-
-If you need administrator privileges, use the `--user` flag:
-
-```bash
-pip install --user -r requirements/prod.txt
-```
 
 ### Runtime Errors
 

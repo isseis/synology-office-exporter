@@ -11,7 +11,7 @@ install:
 	pip install .
 
 install-dev:
-	pip install -e .
+	pip install -e '.[dev]'
 
 uninstall:
 	pip uninstall synology-office-exporter
@@ -21,6 +21,10 @@ test:
 
 lint:
 	flake8 --config .flake8
+
+venv-setup:
+	python -m venv .venv
+	.venv/bin/pip install --upgrade pip
 
 clean:
 	rm -rf build dist synology_office_exporter.egg-info
