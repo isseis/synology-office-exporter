@@ -1,4 +1,7 @@
 # Synology Office Exporter
+![Python](https://img.shields.io/badge/python-v3.6+-blue.svg)
+[![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
+![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
 
 This tool downloads Synology Office files from your Synology NAS and converts them to Microsoft Office formats. It processes Synology Office documents from your personal My Drive, team folders, and shared files, converting them to their corresponding Microsoft Office formats.
 
@@ -24,7 +27,7 @@ cd synology-office-exporter
 ```
 
 ### Create virtual environment
-It's recommended to create Python virutal environment and run the tools inside it.
+It's recommended to create Python virtual environment and run the tools inside it.
 
 For bash / zsh users:
 ```bash
@@ -44,7 +47,7 @@ The project includes a `pyproject.toml` file for modern Python packaging. You ca
 #### Build and install the package
 
 ```bash
-pip install
+pip install .
 ```
 
 After installation, you can run the tool using the command:
@@ -63,7 +66,7 @@ You may skip this section if you just want to use this tool.
 pip install -e '.[dev]'
 ```
 
-This installs packages used for development, and install this project in ediable mode.
+This installs packages used for development, and install this project in editable mode.
 
 ### Running Tests
 
@@ -163,6 +166,7 @@ By default, files are saved in the `out` directory (specified in the Makefile).
 
 - `ModuleNotFoundError`: Ensure the required packages are installed correctly.
 - Connection errors: Check the NAS IP address and port settings. The default ports are 5000 for HTTP and 5001 for HTTPS.
+- `SSL: CERTIFICATE_VERIFY_FAILED`: Ensure the NAS has a valid SSL certificate or use the `--no-verify` option to skip SSL verification.
 
 ## Acknowledgements
 
