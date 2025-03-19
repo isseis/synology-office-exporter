@@ -1,4 +1,4 @@
-.PHONY: run build install install-dev uninstall test lint clean
+.PHONY: run build install install-dev uninstall test lint venv-setup pre-commit clean
 
 build:
 	pip install build
@@ -25,6 +25,9 @@ lint:
 venv-setup:
 	python -m venv .venv
 	.venv/bin/pip install --upgrade pip
+
+pre-commit:
+	pre-commit run --all-files
 
 clean:
 	rm -rf build dist synology_office_exporter.egg-info
