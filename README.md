@@ -14,40 +14,11 @@ This tool downloads Synology Office files from your Synology NAS and converts th
 ## Requirements
 
 - Python 3.6+
-- synology-drive-api package
-- python-dotenv package
 
 ## Installation
 
-### Clone the Repository
-
 ```bash
-git clone https://github.com/isseis/synology-office-exporter.git
-cd synology-office-exporter
-```
-
-### Create virtual environment
-It's recommended to create Python virtual environment and run the tools inside it.
-
-For bash / zsh users:
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install --upgrade pip
-```
-
-#### Mac users
-
-In case you encounter error message like `zsh: command not found: python`, you should run `python3 -m venv .venv` instead of `python -m venv .venv` in the commands above.
-
-### Using pyproject.toml
-
-The project includes a `pyproject.toml` file for modern Python packaging. You can:
-
-#### Build and install the package
-
-```bash
-pip install .
+pip install synology-office-exporter
 ```
 
 After installation, you can run the tool using the command:
@@ -60,6 +31,23 @@ synology-office-exporter --help
 
 You may skip this section if you just want to use this tool.
 
+### Create virtual environment
+It's recommended to create Python virtual environment and run the tools inside it.
+
+For bash / zsh users:
+```bash
+python -m venv .venv
+. .venv/bin/activate
+pip install --upgrade pip
+```
+
+### Clone the Repository
+
+```bash
+git clone https://github.com/isseis/synology-office-exporter.git
+cd synology-office-exporter
+```
+
 ### Install development packages
 
 ```bash
@@ -67,6 +55,11 @@ pip install -e '.[dev]'
 ```
 
 This installs packages used for development, and install this project in editable mode.
+After installation, you can run the tool using the command:
+
+```bash
+synology-office-exporter --help
+```
 
 ### Setting up pre-commit hooks
 
@@ -124,20 +117,6 @@ or
 flake8 --config .flake8
 ```
 
-### Running Tests
-
-To run the tests manually:
-
-```bash
-make test
-```
-
-or
-
-```bash
-python -m unittest discover -s tests -p 'test_*.py'
-```
-
 ## Configuration
 
 Create a `.env` file and set the following environment variables:
@@ -151,12 +130,6 @@ SYNOLOGY_NAS_HOST=your_nas_ip_or_hostname
 ## Usage
 
 ### Command Line
-
-```bash
-python -m synology_office_exporter.main [options]
-```
-
-Or if installed:
 
 ```bash
 synology-office-exporter [options]
@@ -181,14 +154,6 @@ Authentication can be provided in three ways (in order of priority):
 2. Environment variables (via .env file: SYNOLOGY_NAS_USER, SYNOLOGY_NAS_PASS, SYNOLOGY_NAS_HOST)
 3. Interactive prompt
 
-### Using Makefile
-
-```bash
-make run ARGS="-f --log-level debug"
-```
-
-By default, files are saved in the `out` directory (specified in the Makefile).
-
 ## Features
 
 - Connects to Synology NAS and downloads Synology Office files from My Drive, team folders, and shared files
@@ -208,7 +173,6 @@ By default, files are saved in the `out` directory (specified in the Makefile).
 
 - `ModuleNotFoundError`: Ensure the required packages are installed correctly.
 - Connection errors: Check the NAS IP address and port settings. The default ports are 5000 for HTTP and 5001 for HTTPS.
-- `SSL: CERTIFICATE_VERIFY_FAILED`: Ensure the NAS has a valid SSL certificate or use the `--no-verify` option to skip SSL verification.
 
 ## Acknowledgements
 
