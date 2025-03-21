@@ -142,11 +142,62 @@ flake8 --config .flake8
 
 Please ensure your code passes all tests and follows the project's coding style before submitting a pull request.
 
-## Release Process
+## Build and Deployment
 
-1. Update version in `setup.py`
-2. Update CHANGELOG.md
-3. Tag the commit with the version number
-4. Push to GitHub
-5. Create a new release on GitHub
-6. The CI/CD pipeline will automatically publish to PyPI
+### Automated procedure
+
+This project uses GitHub Actions for build and deployment.
+To create a new release, you just need to take the following steps.
+
+1. Commit and push changes
+2. Create and push a new tag: `git tag vX.Y.Z && git push --tags`
+3. The CI/CD pipeline will automatically build, publish to PyPI and create release on GitHub.
+
+The workflow is defined in `.github/workflows/` and includes:
+- Running tests on multiple Python versions
+- Code quality checks
+- Building and publishing the package
+
+### Manual procedure
+
+#### Building the Package
+
+To build the package locally:
+
+```bash
+# Clean any previous builds
+rm -rf build/ dist/ *.egg-info/
+
+# Build the package
+python -m build
+```
+
+This will create both source distribution (`.tar.gz`) and wheel (`.whl`) files in the `dist/` directory.
+
+Alternatively, you can execute `make clean && make build`.
+
+#### Testing the Package Locally
+
+You can install the locally built package for testing:
+
+```bash
+pip install dist/*.whl
+```
+
+#### Deploying to PyPI (Test)
+
+For testing the deployment process, you can use the PyPI test environment:
+
+```bash
+python -m twine upload --repository testpypi dist/*
+```
+
+The package will be available at: https://test.pypi.org/project/synology-office-exporter/
+
+#### Deploying to PyPI (Production)
+
+Once you've verified the package works correctly on TestPyPI, you can deploy to the main PyPI repository:
+
+```bash
+python -m twine upload dist/*
+```
