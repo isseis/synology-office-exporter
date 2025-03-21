@@ -22,13 +22,11 @@ Authentication:
   1. Command line arguments (-u, -p, -s)
   2. Environment variables (via .env file: SYNOLOGY_NAS_USER, SYNOLOGY_NAS_PASS, SYNOLOGY_NAS_HOST)
   3. Interactive prompt
-
-Example:
-  python main.py -o ~/Downloads/synology_exports -f --log-level debug
 """
 
 import argparse
 import getpass
+import io
 import logging
 import os
 from dotenv import load_dotenv
@@ -97,11 +95,13 @@ def main():  # noqa: D103
         # Connect to Synology Drive
         with SynologyDriveEx(username, password, server, dsm_version='7') as synd:
             # Create and use the downloader
-            with SynologyOfficeExporter(synd, output_dir=args.output, force_download=args.force) as exporter:
+            stat_buf = io.StringIO()
+            with SynologyOfficeExporter(synd, output_dir=args.output, force_download=args.force,
+                                        stat_buf=stat_buf) as exporter:
                 exporter.download_mydrive_files()
                 exporter.download_shared_files()
                 exporter.download_teamfolder_files()
-                exporter.print_summary()
+            print(stat_buf.getvalue())
 
         logging.info("Done!")
         return 0

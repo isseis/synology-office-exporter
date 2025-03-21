@@ -20,7 +20,7 @@ Requirements:
 See main.py for command line usage instructions.
 """
 
-from io import BytesIO
+from io import BytesIO, StringIO
 import logging
 import os
 import sys
@@ -63,10 +63,10 @@ class SynologyOfficeExporter:
             exporter.download_mydrive_files()
             exporter.download_teamfolder_files()
             exporter.download_shared_files()
-            exporter.print_summary()
     """
 
-    def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False):
+    def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False,
+                 stat_buf: StringIO = None):
         """
         Initialize the SynologyOfficeExporter with the given parameters.
 
@@ -80,6 +80,7 @@ class SynologyOfficeExporter:
         self.download_history_file = os.path.join(output_dir, '.download_history.json')
         self.download_history = {}
         self.force_download = force_download
+        self.stat_buf = stat_buf
         self._load_download_history()
 
         # Counters for tracking statistics
@@ -89,7 +90,7 @@ class SynologyOfficeExporter:
         self.deleted_files = 0
 
         # Set to track current files on NAS
-        self.current_file_ids = set()
+        self.current_file_paths = set()
 
         # Flag to skip file deletion if any exceptions occurred
         self.had_exceptions = False
@@ -127,6 +128,7 @@ class SynologyOfficeExporter:
             logging.info("Skipping file deletion due to exceptions during processing")
 
         self._save_download_history()
+        self._dump_summary()
 
     def _load_download_history(self):
         """Load the download history from a JSON file."""
@@ -156,12 +158,13 @@ class SynologyOfficeExporter:
         This method identifies files that exist in the download history but not in the current
         file list, deletes those files from the local filesystem, and updates the download history.
         """
-        deleted_file_ids = set(self.download_history.keys()) - self.current_file_ids
-
-        for file_id in deleted_file_ids:
+        logging.info("Removing deleted files...")
+        deleted_file_paths = set(self.download_history.keys()) - self.current_file_paths
+        for file_path in deleted_file_paths:
             try:
-                file_info = self.download_history[file_id]
-                output_path = file_info['output_path']
+                offline_name = self.get_offline_name(file_path)
+                # TODO: offline_name s None
+                output_path = os.path.join(self.output_dir, offline_name.lstrip('/'))
 
                 if os.path.exists(output_path):
                     logging.info(f"Removing deleted file: {output_path}")
@@ -171,10 +174,10 @@ class SynologyOfficeExporter:
                     logging.debug(f"File already removed: {output_path}")
 
                 # Remove from download history
-                del self.download_history[file_id]
+                del self.download_history[file_path]
 
             except Exception as e:
-                logging.error(f"Error removing deleted file {file_id}: {e}")
+                logging.error(f"Error removing deleted file {file_path}: {e}")
                 # Set the exception flag to prevent future deletions in this session
                 self.had_exceptions = True
 
@@ -285,18 +288,18 @@ class SynologyOfficeExporter:
             hash: The hash of the file to track changes
         """
         logging.debug(f'Processing {display_path}')
-        self.current_file_ids.add(file_id)
         try:
             offline_name = self.get_offline_name(display_path)
             if not offline_name:
                 logging.debug(f'Skipping non-Synology Office file: {display_path}')
                 return
 
+            self.current_file_paths.add(display_path)
             self.total_found_files += 1
 
             # Check if file is already downloaded and unchanged
-            if not self.force_download and (file_id in self.download_history
-                                            and self.download_history[file_id]['hash'] == hash):
+            if not self.force_download and (display_path in self.download_history
+                                            and self.download_history[display_path]['hash'] == hash):
                 logging.info(f'Skipping already downloaded file: {display_path}')
                 self.skipped_files += 1
                 return
@@ -314,9 +317,9 @@ class SynologyOfficeExporter:
             self.downloaded_files += 1
 
             # Save download info to history
-            self.download_history[file_id] = {
+            self.download_history[display_path] = {
+                'file_id': file_id,
                 'hash': hash,
-                'path': display_path,
                 'output_path': output_path,
                 'download_time': str(datetime.now())
             }
@@ -368,16 +371,17 @@ class SynologyOfficeExporter:
         with open(path, 'wb') as f:
             f.write(data.getvalue())
 
-    def print_summary(self):
+    def _dump_summary(self):
         """
-        Display statistics for the execution results.
+        Dump statistics for the execution results.
         """
-        print("\n===== Download Results Summary =====")
-        print(f"Total files found for backup: {self.total_found_files}")
-        print(f"Files skipped: {self.skipped_files}")
-        print(f"Files downloaded: {self.downloaded_files}")
-        print(f"Files deleted: {self.deleted_files}")
-        print("=====================================")
+        if self.stat_buf is not None:
+            self.stat_buf.write("\n===== Download Results Summary =====\n\n")
+            self.stat_buf.write(f"Total files found for backup: {self.total_found_files}\n")
+            self.stat_buf.write(f"Files skipped: {self.skipped_files}\n")
+            self.stat_buf.write(f"Files downloaded: {self.downloaded_files}\n")
+            self.stat_buf.write(f"Files deleted: {self.deleted_files}\n")
+            self.stat_buf.write("=====================================\n")
 
 
 if __name__ == '__main__':

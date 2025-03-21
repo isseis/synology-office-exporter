@@ -3,7 +3,7 @@ import unittest
 from unittest.mock import Mock, patch
 import os
 import tempfile
-from io import BytesIO, StringIO
+from io import BytesIO
 
 from synology_office_exporter.exporter import SynologyOfficeExporter
 
@@ -74,7 +74,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
 
         # Add file to download history
         self.exporter.download_history = {
-            file_id: {
+            display_path: {
+                'file_id': file_id,
                 'hash': file_hash,
                 'path': display_path,
                 'output_path': os.path.join(self.temp_dir, 'test_document.docx'),
@@ -109,23 +110,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
             self.assertEqual(self.exporter.skipped_files, 0)
             mock_save.assert_not_called()
 
-    def test_print_summary(self):
-        """Test output of statistics"""
-        # Set counters
-        self.exporter.total_found_files = 10
-        self.exporter.downloaded_files = 7
-        self.exporter.skipped_files = 3
-
-        # Capture standard output
-        with patch('sys.stdout', new=StringIO()) as fake_out:
-            self.exporter.print_summary()
-            output = fake_out.getvalue()
-
-            # Verify output content
-            self.assertIn("Total files found for backup: 10", output)
-            self.assertIn("Files skipped: 3", output)
-            self.assertIn("Files downloaded: 7", output)
-
     def test_force_download(self):
         """Test that files are re-downloaded when force_download=True even if already downloaded"""
         # Enable force_download
@@ -138,7 +122,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
 
         # Add file to download history
         self.exporter.download_history = {
-            file_id: {
+            display_path: {
+                'file_id': file_id,
                 'hash': file_hash,
                 'path': display_path,
                 'output_path': os.path.join(self.temp_dir, 'test_document.docx'),

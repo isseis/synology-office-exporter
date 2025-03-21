@@ -21,16 +21,16 @@ class TestDeletedFiles(unittest.TestCase):
         self.history_file = os.path.join(self.output_dir, ".download_history.json")
 
         self.sample_history = {
-            "file_id_1": {
+            "/path/to/document.odoc": {
+                "file_id": "file_id_1",
                 "hash": "hash1",
                 "path": "/path/to/document.odoc",
-                "output_path": os.path.join(self.output_dir, "document.docx"),
                 "download_time": "2023-01-01 12:00:00"
             },
-            "file_id_2": {
+            "/path/to/spreadsheet.osheet": {
+                "file_id": "file_id_2",
                 "hash": "hash2",
                 "path": "/path/to/spreadsheet.osheet",
-                "output_path": os.path.join(self.output_dir, "spreadsheet.xlsx"),
                 "download_time": "2023-01-01 12:00:00"
             }
         }
@@ -59,18 +59,15 @@ class TestDeletedFiles(unittest.TestCase):
             exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
             exporter.download_history = self.sample_history.copy()
 
-            # Simulate that one file still exists on NAS (file_id_1) and one is deleted (file_id_2)
-            exporter.current_file_ids = {"file_id_1"}
+            # Simulate that one file still exists on NAS (document.docx) and one is deleted (spreadsheet.xlsx)
+            exporter.current_file_paths = {"/path/to/document.odoc"}
 
             # Call the method to test
             exporter._remove_deleted_files()
 
-            # Check that os.remove was called for the deleted file
-            mock_remove.assert_called_once_with(self.sample_history["file_id_2"]["output_path"])
-
             # Check that the deleted file is removed from history
-            self.assertNotIn("file_id_2", exporter.download_history)
-            self.assertIn("file_id_1", exporter.download_history)
+            self.assertNotIn("/path/to/spreadsheet.osheet", exporter.download_history)
+            self.assertIn("/path/to/document.odoc", exporter.download_history)
 
             # Check that the counter was incremented
             self.assertEqual(exporter.deleted_files, 1)
@@ -86,7 +83,7 @@ class TestDeletedFiles(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Simulate that all files still exist on the NAS
-            exporter.current_file_ids = {"file_id_1", "file_id_2"}
+            exporter.current_file_paths = {"/path/to/document.odoc", "/path/to/spreadsheet.osheet"}
 
             # Call the method to test
             exporter._remove_deleted_files()
@@ -112,7 +109,7 @@ class TestDeletedFiles(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Simulate that one file is deleted from NAS
-            exporter.current_file_ids = {"file_id_1"}
+            exporter.current_file_paths = {"document.docx"}
 
             # Call the method to test
             exporter._remove_deleted_files()
@@ -121,7 +118,7 @@ class TestDeletedFiles(unittest.TestCase):
             mock_remove.assert_not_called()
 
             # Check that the file is still removed from history
-            self.assertNotIn("file_id_2", exporter.download_history)
+            self.assertNotIn("spreadsheet.xlsx", exporter.download_history)
 
             # Check that the counter wasn't incremented (no actual deletion)
             self.assertEqual(exporter.deleted_files, 0)
@@ -134,8 +131,8 @@ class TestDeletedFiles(unittest.TestCase):
         with patch.object(SynologyOfficeExporter, '_load_download_history'):
             exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
 
-            # Set a partial history (as if file_id_2 was deleted)
-            exporter.download_history = {"file_id_1": self.sample_history["file_id_1"]}
+            # Set a partial history (as if spreadsheet.xlsx was deleted)
+            exporter.download_history = {"/path/to/document.odoc": self.sample_history["/path/to/document.odoc"]}
 
             # Call exit to trigger save
             exporter.__exit__(None, None, None)
@@ -143,9 +140,9 @@ class TestDeletedFiles(unittest.TestCase):
             # Verify history was saved with updated content
             mock_file_open.assert_called_with(self.history_file, 'w')
             mock_json_dump.assert_called_once()
-            # Verify that file_id_2 is not in the saved history
+            # Verify that spreadsheet.xlsx is not in the saved history
             saved_history = mock_json_dump.call_args[0][0]
-            self.assertNotIn("file_id_2", saved_history)
+            self.assertNotIn("/path/to/spreadsheet.osheet", saved_history)
 
     @patch("os.path.exists")
     def test_end_to_end_process(self, mock_path_exists):
@@ -156,8 +153,9 @@ class TestDeletedFiles(unittest.TestCase):
         mock_list_resp = {
             "success": True,
             "data": {"items": [
-                {"file_id": "file_id_1", "name": "document.odoc", "content_type": "document", "hash": "hash1"},
-                # file_id_2 is missing, simulating it was deleted from NAS
+                {"file_id": "file_id_1", "name": "document.odoc",
+                    "display_path": "/path/to/document.odoc", "content_type": "document", "hash": "hash1"},
+                # spreadsheet.xlsx is missing, simulating it was deleted from NAS
             ]}
         }
         self.mock_synd.list_folder.return_value = mock_list_resp
@@ -171,17 +169,18 @@ class TestDeletedFiles(unittest.TestCase):
             exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
             exporter.download_history = self.sample_history.copy()
 
-            # Process directory which only has file_id_1 now
+            # Process directory which only has document.docx now
             exporter._process_directory("dir_id", "test_dir")
 
             # Exit to trigger the removal of deleted files
             exporter.__exit__(None, None, None)
 
-            # Verify file_id_2 was removed
-            mock_remove.assert_called_once_with(self.sample_history["file_id_2"]["output_path"])
+            # Verify spreadsheet.xlsx was removed
+            mock_remove.assert_called_once_with(
+                os.path.join(self.output_dir, "path/to/spreadsheet.xlsx"))
 
             # Check history was updated
-            self.assertNotIn("file_id_2", exporter.download_history)
+            self.assertNotIn("/path/to/spreadsheet.osheet", exporter.download_history)
 
             # Check counters
             self.assertEqual(exporter.deleted_files, 1)
@@ -233,7 +232,7 @@ class TestDeletedFiles(unittest.TestCase):
         exporter.download_history = self.sample_history.copy()
 
         # Mark both files as deleted
-        exporter.current_file_ids = set()
+        exporter.current_file_paths = set()
 
         # Make first deletion raise an exception
         mock_remove.side_effect = Exception("Permission denied")
@@ -265,8 +264,8 @@ class TestDeletedFiles(unittest.TestCase):
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
         exporter.download_history = self.sample_history.copy()
 
-        # Mark file_id_1 as deleted (not in current_file_ids)
-        exporter.current_file_ids = {"file_id_2"}
+        # Mark document.docx as deleted (not in current_file_paths)
+        exporter.current_file_paths = {"/path/to/spreadsheet.osheet"}
 
         # Ensure no exceptions
         exporter.had_exceptions = False
@@ -280,8 +279,8 @@ class TestDeletedFiles(unittest.TestCase):
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
         exporter.download_history = self.sample_history.copy()
 
-        # Mark file_id_1 as deleted (not in current_file_ids)
-        exporter.current_file_ids = {"file_id_2"}
+        # Mark document.docx as deleted (not in current_file_paths)
+        exporter.current_file_paths = {"spreadsheet.xlsx"}
 
         # Simulate an exception during processing, captured by except block which sets had_exceptions.
         exporter.had_exceptions = True
@@ -295,8 +294,8 @@ class TestDeletedFiles(unittest.TestCase):
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
         exporter.download_history = self.sample_history.copy()
 
-        # Mark file_id_1 as deleted (not in current_file_ids)
-        exporter.current_file_ids = {"file_id_2"}
+        # Mark document.docx as deleted (not in current_file_paths)
+        exporter.current_file_paths = {"spreadsheet.xlsx"}
 
         # Simulate an exception during processing, and not captured.
         exporter.had_exceptions = False

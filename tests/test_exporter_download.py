@@ -267,7 +267,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
 
         exporter = SynologyOfficeExporter(mock_synd, output_dir='.')
         exporter.download_history = {
-            '123': {
+            'path/to/test.osheet': {
+                'file_id': '123',
                 'hash': 'abc123',
                 'path': 'path/to/test.osheet',
                 'output_path': './test.xlsx',
@@ -291,7 +292,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         # Create exporter instance and set up download history with old hash
         exporter = SynologyOfficeExporter(mock_synd, output_dir='.')
         exporter.download_history = {
-            '123': {
+            'path/to/test.osheet': {
+                'file_id': '123',
                 'hash': 'old-hash',
                 'path': 'path/to/test.osheet',
                 'output_path': './test.xlsx',
@@ -307,7 +309,7 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         mock_save.assert_called_once()
 
         # Verify that the history was updated with the new hash
-        self.assertEqual(exporter.download_history['123']['hash'], 'new-hash')
+        self.assertEqual(exporter.download_history['path/to/test.osheet']['hash'], 'new-hash')
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_download_history_saves_new_files(self, mock_save):
@@ -326,9 +328,10 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         mock_save.assert_called_once()
 
         # Verify that the new file was added to history
-        self.assertIn('456', exporter.download_history)
-        self.assertEqual(exporter.download_history['456']['hash'], 'new-file-hash')
-        self.assertEqual(exporter.download_history['456']['path'], 'path/to/new.osheet')
+        self.assertIn('path/to/new.osheet', exporter.download_history)
+        self.assertEqual(exporter.download_history['path/to/new.osheet']['file_id'], '456')
+        self.assertEqual(exporter.download_history['path/to/new.osheet']['hash'], 'new-file-hash')
+        self.assertEqual(exporter.download_history['path/to/new.osheet']['output_path'], './path/to/new.xlsx')
 
     @patch('json.load')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
@@ -337,8 +340,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         """Test that download history is correctly loaded from file."""
         mock_exists.return_value = True
         mock_json_load.return_value = {
-            '123': {'hash': 'abc123', 'path': 'test.osheet'},
-            '456': {'hash': 'def456', 'path': 'test2.osheet'}
+            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet', 'output_path': './test.xlsx'},
+            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet', 'output_path': './test2.xlsx'}
         }
 
         exporter = SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
@@ -350,7 +353,7 @@ class TestSynologyOfficeExporter(unittest.TestCase):
 
         # Verify history was loaded correctly
         self.assertEqual(len(exporter.download_history), 2)
-        self.assertEqual(exporter.download_history['123']['hash'], 'abc123')
+        self.assertEqual(exporter.download_history['test.osheet']['hash'], 'abc123')
 
     @patch('json.dump')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
@@ -359,8 +362,10 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         """Test that download history is correctly saved to file."""
         exporter = SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
         exporter.download_history = {
-            '123': {'hash': 'abc123', 'path': 'test.osheet'},
-            '456': {'hash': 'def456', 'path': 'test2.osheet'}
+            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet',
+                            'output_path': '/test/dir/test.xlsx'},
+            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet',
+                             'output_path': '/test/dir/test2.xlsx'}
         }
 
         exporter._save_download_history()
@@ -397,7 +402,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
 
         exporter = SynologyOfficeExporter(mock_synd, output_dir='.', force_download=True)
         exporter.download_history = {
-            '123': {
+            'ath/to/test.osheet': {
+                'file_id': '123',
                 'hash': 'abc123',
                 'path': 'path/to/test.osheet',
                 'output_path': './test.xlsx',

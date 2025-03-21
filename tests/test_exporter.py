@@ -4,7 +4,7 @@ Tests for the main SynologyOfficeExporter class.
 
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
-from io import BytesIO
+from io import BytesIO, StringIO
 import os
 
 from synology_office_exporter.exporter import SynologyOfficeExporter
@@ -102,13 +102,34 @@ class TestSynologyOfficeExporter(unittest.TestCase):
             exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
 
             # Clear any auto-loaded history
-            exporter.current_file_ids = set()
+            exporter.current_file_paths = set()
 
-            # Process a document - should add to current_file_ids
+            # Process a document - should add to current_file_paths
             exporter._process_document("test_file_id", "/path/to/document.odoc", "hash123")
 
             # Verify the file ID was added to the tracking set
-            self.assertIn("test_file_id", exporter.current_file_ids)
+            self.assertIn("/path/to/document.odoc", exporter.current_file_paths)
+
+    def test_stat_buf(self):
+        """Test that statistics are correctly written to the provided buffer."""
+        stat_buf = StringIO()
+
+        with SynologyOfficeExporter(self.mock_synd, stat_buf=stat_buf) as exporter:
+            exporter.total_found_files = 3
+            exporter.skipped_files = 2
+            exporter.downloaded_files = 1
+            exporter.deleted_files = 4
+
+        # Verify output matches expected format
+        self.assertEqual(
+            stat_buf.getvalue(),
+            "\n===== Download Results Summary =====\n\n"
+            "Total files found for backup: 3\n"
+            "Files skipped: 2\n"
+            "Files downloaded: 1\n"
+            "Files deleted: 4\n"
+            "=====================================\n"
+        )
 
 
 if __name__ == "__main__":
