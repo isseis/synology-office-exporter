@@ -1,6 +1,5 @@
 [flake8]
 max-line-length = 120
-# TODO: Enable flake8 checks on tests file.
 exclude = .git,.venv/,__pycache__,build,dist
 ignore = D107, D200, D400, D401, E203, W503
 per-file-ignores =
