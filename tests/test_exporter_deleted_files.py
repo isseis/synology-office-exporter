@@ -53,7 +53,6 @@ class TestDeletedFiles(unittest.TestCase):
     @patch("os.remove")
     def test_remove_deleted_files(self, mock_remove, mock_path_exists):
         """Test that files deleted from NAS are removed from the output directory."""
-        # Mock file existence check to always return True
         mock_path_exists.return_value = True
 
         with patch.object(SynologyOfficeExporter, '_load_download_history'):
@@ -186,6 +185,125 @@ class TestDeletedFiles(unittest.TestCase):
 
             # Check counters
             self.assertEqual(exporter.deleted_files, 1)
+
+    def test_download_mydrive_files_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+
+        # Make list_folder raise an exception
+        self.mock_synd.list_folder.side_effect = Exception("Network error")
+
+        # Call the method
+        exporter.download_mydrive_files()
+
+        # Verify exception flag was set
+        self.assertTrue(exporter.had_exceptions)
+
+    def test_download_shared_files_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Make list_folder raise an exception
+        self.mock_synd.shared_with_me.side_effect = Exception("Network error")
+
+        # Call the method
+        exporter.download_shared_files()
+
+        # Verify exception flag was set
+        self.assertTrue(exporter.had_exceptions)
+
+    def test_download_teamfolder_files_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Make list_folder raise an exception
+        self.mock_synd.get_teamfolder_info.side_effect = Exception("Network error")
+
+        # Call the method
+        exporter.download_teamfolder_files()
+
+        # Verify exception flag was set
+        self.assertTrue(exporter.had_exceptions)
+
+    @patch('os.path.exists')
+    @patch('os.remove')
+    def test_exception_during_file_deletion_stops_further_deletions(self, mock_remove, mock_path_exists):
+        mock_path_exists.return_value = True
+
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Mark both files as deleted
+        exporter.current_file_ids = set()
+
+        # Make first deletion raise an exception
+        mock_remove.side_effect = Exception("Permission denied")
+
+        # Run the method
+        exporter._remove_deleted_files()
+
+        # Verify exception flag was set
+        self.assertTrue(exporter.had_exceptions)
+
+    def test_process_document_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Make download_synology_office_file raise an exception
+        self.mock_synd.download_synology_office_file.side_effect = Exception("Download error")
+
+        # Call the method
+        exporter._process_document("testfile", "/path/to/test.odoc", "hash123")
+
+        # Verify exception flag was set
+        self.assertTrue(exporter.had_exceptions)
+
+    @patch("os.path.exists")
+    @patch('os.remove')
+    def test_file_deletion_in_context_manager(self, mock_remove, mock_path_exists):
+        mock_path_exists.return_value = True
+
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Mark file_id_1 as deleted (not in current_file_ids)
+        exporter.current_file_ids = {"file_id_2"}
+
+        # Ensure no exceptions
+        exporter.had_exceptions = False
+        exporter.__exit__(None, None, None)
+
+        # Verify deletion occurred
+        mock_remove.assert_called_once()
+
+    @patch('os.remove')
+    def test_no_file_deletion_when_exception_occurs_and_captured(self, mock_remove):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Mark file_id_1 as deleted (not in current_file_ids)
+        exporter.current_file_ids = {"file_id_2"}
+
+        # Simulate an exception during processing, captured by except block which sets had_exceptions.
+        exporter.had_exceptions = True
+        exporter.__exit__(None, None, None)
+
+        # Verify no files were deleted
+        mock_remove.assert_not_called()
+
+    @patch('os.remove')
+    def test_no_file_deletion_when_exception_occurs_and_not_captured(self, mock_remove):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter.download_history = self.sample_history.copy()
+
+        # Mark file_id_1 as deleted (not in current_file_ids)
+        exporter.current_file_ids = {"file_id_2"}
+
+        # Simulate an exception during processing, and not captured.
+        exporter.had_exceptions = False
+        exporter.__exit__(ValueError, ValueError("Test exception"), None)
+
+        # Verify no files were deleted
+        mock_remove.assert_not_called()
 
 
 if __name__ == "__main__":

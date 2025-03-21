@@ -91,6 +91,9 @@ class SynologyOfficeExporter:
         # Set to track current files on NAS
         self.current_file_ids = set()
 
+        # Flag to skip file deletion if any exceptions occurred
+        self.had_exceptions = False
+
     def __enter__(self):
         """
         Context manager entry method.
@@ -105,14 +108,24 @@ class SynologyOfficeExporter:
         Context manager exit method that saves history and removes deleted files.
 
         Saves the download history when exiting the context.
-        Removes files that have been deleted from the NAS.
+        Removes files that have been deleted from the NAS only if no exceptions occurred.
 
         Args:
             exc_type: Exception type if an exception was raised
             exc_value: Exception value if an exception was raised
             traceback: Traceback if an exception was raised
         """
-        self._remove_deleted_files()
+        # Set exception flag if an exception occurred
+        if exc_type is not None:
+            self.had_exceptions = True
+            logging.warning("Exception occurred during processing, skipping file deletion")
+
+        # Only remove deleted files if no exceptions occurred
+        if not self.had_exceptions:
+            self._remove_deleted_files()
+        else:
+            logging.info("Skipping file deletion due to exceptions during processing")
+
         self._save_download_history()
 
     def _load_download_history(self):
@@ -162,6 +175,8 @@ class SynologyOfficeExporter:
 
             except Exception as e:
                 logging.error(f"Error removing deleted file {file_id}: {e}")
+                # Set the exception flag to prevent future deletions in this session
+                self.had_exceptions = True
 
         logging.info(f"Removed {self.deleted_files} files that were deleted from the NAS")
 
@@ -180,6 +195,7 @@ class SynologyOfficeExporter:
             self._process_directory('/mydrive', 'My Drive')
         except Exception as e:
             logging.error(f'Error downloading My Drive files: {e}')
+            self.had_exceptions = True
 
     def download_shared_files(self):
         """
@@ -198,8 +214,10 @@ class SynologyOfficeExporter:
                     self._process_item(item)
                 except Exception as e:
                     logging.error(f"Error processing shared item {item.get('name')}: {e}")
+                    self.had_exceptions = True
         except Exception as e:
             logging.error(f'Error accessing shared files: {e}')
+            self.had_exceptions = True
 
     def download_teamfolder_files(self):
         """
@@ -218,8 +236,10 @@ class SynologyOfficeExporter:
                     self._process_directory(file_id, name)
                 except Exception as e:
                     logging.error(f'Error processing team folder {name}: {e}')
+                    self.had_exceptions = True
         except Exception as e:
             logging.error(f'Error accessing team folders: {e}')
+            self.had_exceptions = True
 
     def _process_item(self, item):
         try:
@@ -237,6 +257,7 @@ class SynologyOfficeExporter:
                 self._process_document(file_id, display_path, hash)
         except Exception as e:
             logging.error(f"Error processing item {item.get('name')}: {e}")
+            self.had_exceptions = True
 
     def _process_directory(self, file_id: str, dir_name: str):
         logging.debug(f'Processing directory: {dir_name}')
@@ -245,12 +266,14 @@ class SynologyOfficeExporter:
             resp = self.synd.list_folder(file_id)
             if not resp['success']:
                 logging.error(f"Failed to list folder {dir_name}: {resp.get('error')}")
+                self.had_exceptions = True
                 return
 
             for item in resp['data']['items']:
                 self._process_item(item)
         except Exception as e:
             logging.error(f'Error processing directory {dir_name}: {e}')
+            self.had_exceptions = True
 
     def _process_document(self, file_id: str, display_path: str, hash: str):
         """
@@ -299,6 +322,7 @@ class SynologyOfficeExporter:
             }
         except Exception as e:
             logging.error(f'Error downloading document {display_path}: {e}')
+            self.had_exceptions = True
 
     @staticmethod
     def get_offline_name(name: str) -> Optional[str]:
