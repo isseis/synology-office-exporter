@@ -5,7 +5,7 @@ build:
 	python -m build
 
 run:
-	python -m synology_office_exporter.main -o out $(ARGS)
+	synology-office-exporter -o out $(ARGS)
 
 install:
 	pip install .
