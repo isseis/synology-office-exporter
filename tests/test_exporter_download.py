@@ -1,3 +1,4 @@
+"""Unit tests for the SynologyOfficeExporter download functionality."""
 import unittest
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
@@ -7,6 +8,18 @@ from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
 
 class TestSynologyOfficeExporter(unittest.TestCase):
+    """
+    Test suite for the SynologyOfficeExporter class.
+
+    This test class covers the main functionality of the SynologyOfficeExporter, including:
+    - Processing and downloading Synology Office documents
+    - File format conversion (Synology Office to MS Office)
+    - Navigation through different storage areas (My Drive, Team Folders, Shared files)
+    - Exception handling and error recovery
+    - Download history management to avoid redundant downloads
+    - Force download option to override history
+    """
+
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_process_document(self, mock_save_bytesio_to_file):
         mock_synd = MagicMock(spec=SynologyDriveEx)
