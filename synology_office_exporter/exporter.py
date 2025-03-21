@@ -56,6 +56,7 @@ class SynologyOfficeExporter:
     - Tracks statistics about found, skipped, and downloaded files
     - Supports context manager protocol for proper resource management
     - Handles encrypted files and various error conditions gracefully
+    - Removes MS Office files when the source Synology Office files are deleted
 
     Usage example:
         with SynologyOfficeExporter(synd_client, output_dir="./exports") as exporter:
@@ -85,6 +86,10 @@ class SynologyOfficeExporter:
         self.total_found_files = 0
         self.skipped_files = 0
         self.downloaded_files = 0
+        self.deleted_files = 0
+
+        # Set to track current files on NAS
+        self.current_file_ids = set()
 
     def __enter__(self):
         """
@@ -97,13 +102,17 @@ class SynologyOfficeExporter:
 
     def __exit__(self, exc_type, exc_value, traceback):
         """
-        Context manager exit method. Saves the download history when exiting the context.
+        Context manager exit method that saves history and removes deleted files.
+
+        Saves the download history when exiting the context.
+        Removes files that have been deleted from the NAS.
 
         Args:
             exc_type: Exception type if an exception was raised
             exc_value: Exception value if an exception was raised
             traceback: Traceback if an exception was raised
         """
+        self._remove_deleted_files()
         self._save_download_history()
 
     def _load_download_history(self):
@@ -126,6 +135,35 @@ class SynologyOfficeExporter:
             logging.info(f"Saved download history for {len(self.download_history)} files")
         except Exception as e:
             logging.error(f"Error saving download history: {e}")
+
+    def _remove_deleted_files(self):
+        """
+        Remove files from the output directory that have been deleted from the NAS.
+
+        This method identifies files that exist in the download history but not in the current
+        file list, deletes those files from the local filesystem, and updates the download history.
+        """
+        deleted_file_ids = set(self.download_history.keys()) - self.current_file_ids
+
+        for file_id in deleted_file_ids:
+            try:
+                file_info = self.download_history[file_id]
+                output_path = file_info['output_path']
+
+                if os.path.exists(output_path):
+                    logging.info(f"Removing deleted file: {output_path}")
+                    os.remove(output_path)
+                    self.deleted_files += 1
+                else:
+                    logging.debug(f"File already removed: {output_path}")
+
+                # Remove from download history
+                del self.download_history[file_id]
+
+            except Exception as e:
+                logging.error(f"Error removing deleted file {file_id}: {e}")
+
+        logging.info(f"Removed {self.deleted_files} files that were deleted from the NAS")
 
     def download_mydrive_files(self):
         """
@@ -224,6 +262,7 @@ class SynologyOfficeExporter:
             hash: The hash of the file to track changes
         """
         logging.debug(f'Processing {display_path}')
+        self.current_file_ids.add(file_id)
         try:
             offline_name = self.get_offline_name(display_path)
             if not offline_name:
@@ -313,6 +352,7 @@ class SynologyOfficeExporter:
         print(f"Total files found for backup: {self.total_found_files}")
         print(f"Files skipped: {self.skipped_files}")
         print(f"Files downloaded: {self.downloaded_files}")
+        print(f"Files deleted: {self.deleted_files}")
         print("=====================================")
 
 
