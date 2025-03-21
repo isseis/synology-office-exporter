@@ -27,96 +27,6 @@ After installation, you can run the tool using the command:
 synology-office-exporter --help
 ```
 
-## Development
-
-You may skip this section if you just want to use this tool.
-
-### Create virtual environment
-It's recommended to create Python virtual environment and run the tools inside it.
-
-For bash / zsh users:
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install --upgrade pip
-```
-
-### Clone the Repository
-
-```bash
-git clone https://github.com/isseis/synology-office-exporter.git
-cd synology-office-exporter
-```
-
-### Install development packages
-
-```bash
-pip install -e '.[dev]'
-```
-
-This installs packages used for development, and install this project in editable mode.
-After installation, you can run the tool using the command:
-
-```bash
-synology-office-exporter --help
-```
-
-### Setting up pre-commit hooks
-
-Install the pre-commit hooks:
-
-```bash
-pre-commit install
-```
-
-Now, every time you run `git commit`, the following actions will be performed automatically:
-
-1. Basic checks (trailing whitespaces, file endings, etc.)
-2. Linting with flake8
-3. Running all tests
-
-If any of these checks fail, the commit will be aborted.
-
-To manually run all hooks on all files:
-
-```bash
-pre-commit run --all-files
-```
-
-To skip pre-commit hooks for a specific commit (not recommended for normal workflow):
-
-```bash
-git commit --no-verify
-```
-
-### Running Tests
-
-To run the tests manually:
-
-```bash
-make test
-```
-
-or
-
-```bash
-python -m unittest discover -s tests -p 'test_*.py'
-```
-
-### Linting
-
-To check code style with flake8:
-
-```bash
-make lint
-```
-
-or
-
-```bash
-flake8 --config .flake8
-```
-
 ## Configuration
 
 Create a `.env` file and set the following environment variables:
@@ -173,6 +83,10 @@ Authentication can be provided in three ways (in order of priority):
 
 - `ModuleNotFoundError`: Ensure the required packages are installed correctly.
 - Connection errors: Check the NAS IP address and port settings. The default ports are 5000 for HTTP and 5001 for HTTPS.
+
+## Development
+
+For developers interested in contributing to this project, please see the [DEVELOPMENT.md](DEVELOPMENT.md) file for detailed instructions on setting up the development environment, running tests, and contributing code.
 
 ## Acknowledgements
 
