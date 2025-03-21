@@ -45,7 +45,7 @@ LOG_LEVELS = {
 }
 
 
-def parse_arguments():
+def parse_arguments():  # noqa: D103
     parser = argparse.ArgumentParser(
         description='Download Synology Office files and convert to Microsoft Office format')
     parser.add_argument('-o', '--output',
@@ -63,7 +63,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-def main():
+def main():  # noqa: D103
     args = parse_arguments()
 
     # Configure logging
@@ -101,6 +101,7 @@ def main():
                 exporter.download_mydrive_files()
                 exporter.download_shared_files()
                 exporter.download_teamfolder_files()
+                exporter.print_summary()
 
         logging.info("Done!")
         return 0

@@ -41,7 +41,39 @@ LOG_LEVELS = {
 
 
 class SynologyOfficeExporter:
+    """
+    A tool for exporting and converting Synology Office documents to Microsoft Office formats.
+
+    This class provides the ability to traverse a Synology NAS, identif3y Synology Office
+    documents (odoc, osheet, oslides), and convert them to their Microsoft Office
+    counterparts (docx, xlsx, pptx). It handles personal files from My Drive,
+    team folder documents, and files shared with the user.
+
+    Features:
+    - Maintains a download history to avoid re-downloading unchanged files
+    - Preserves folder structure when exporting files
+    - Provides detailed logging of operations
+    - Tracks statistics about found, skipped, and downloaded files
+    - Supports context manager protocol for proper resource management
+    - Handles encrypted files and various error conditions gracefully
+
+    Usage example:
+        with SynologyOfficeExporter(synd_client, output_dir="./exports") as exporter:
+            exporter.download_mydrive_files()
+            exporter.download_teamfolder_files()
+            exporter.download_shared_files()
+            exporter.print_summary()
+    """
+
     def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False):
+        """
+        Initialize the SynologyOfficeExporter with the given parameters.
+
+        Args:
+            synd: SynologyDriveEx instance for API communication
+            output_dir: Directory where converted files will be saved
+            force_download: If True, files will be downloaded regardless of download history
+        """
         self.synd = synd
         self.output_dir = output_dir
         self.download_history_file = os.path.join(output_dir, '.download_history.json')
@@ -49,10 +81,29 @@ class SynologyOfficeExporter:
         self.force_download = force_download
         self._load_download_history()
 
+        # Counters for tracking statistics
+        self.total_found_files = 0
+        self.skipped_files = 0
+        self.downloaded_files = 0
+
     def __enter__(self):
+        """
+        Context manager entry method.
+
+        Returns:
+            SynologyOfficeExporter: The instance itself for use in with statements.
+        """
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        """
+        Context manager exit method. Saves the download history when exiting the context.
+
+        Args:
+            exc_type: Exception type if an exception was raised
+            exc_value: Exception value if an exception was raised
+            traceback: Traceback if an exception was raised
+        """
         self._save_download_history()
 
     def _load_download_history(self):
@@ -77,6 +128,15 @@ class SynologyOfficeExporter:
             logging.error(f"Error saving download history: {e}")
 
     def download_mydrive_files(self):
+        """
+        Download and process all Synology Office files from the user's personal My Drive.
+
+        This method traverses the user's personal storage space on the Synology NAS,
+        identifying and converting all compatible Synology Office documents.
+
+        Exceptions during processing are caught and logged, allowing the process
+        to continue with other files.
+        """
         logging.info('Downloading My Drive files...')
         try:
             self._process_directory('/mydrive', 'My Drive')
@@ -84,6 +144,15 @@ class SynologyOfficeExporter:
             logging.error(f'Error downloading My Drive files: {e}')
 
     def download_shared_files(self):
+        """
+        Download and process all Synology Office files that are shared with the user.
+
+        This method identifies and converts all compatible Synology Office documents
+        from files and folders that have been shared with the current user.
+
+        Exceptions during processing are caught and logged, allowing the process
+        to continue with other files.
+        """
         logging.info('Downloading shared files...')
         try:
             for item in self.synd.shared_with_me():
@@ -95,6 +164,15 @@ class SynologyOfficeExporter:
             logging.error(f'Error accessing shared files: {e}')
 
     def download_teamfolder_files(self):
+        """
+        Download and process all Synology Office files from team folders.
+
+        This method traverses all accessible team folders on the Synology NAS,
+        identifying and converting all compatible Synology Office documents.
+
+        Exceptions during processing are caught and logged, allowing the process
+        to continue with other files and folders.
+        """
         logging.info('Downloading team folder files...')
         try:
             for name, file_id in self.synd.get_teamfolder_info().items():
@@ -147,15 +225,18 @@ class SynologyOfficeExporter:
         """
         logging.debug(f'Processing {display_path}')
         try:
+            offline_name = self.get_offline_name(display_path)
+            if not offline_name:
+                logging.debug(f'Skipping non-Synology Office file: {display_path}')
+                return
+
+            self.total_found_files += 1
+
             # Check if file is already downloaded and unchanged
             if not self.force_download and (file_id in self.download_history
                                             and self.download_history[file_id]['hash'] == hash):
                 logging.info(f'Skipping already downloaded file: {display_path}')
-                return
-
-            offline_name = self.get_offline_name(display_path)
-            if not offline_name:
-                logging.debug(f'Skipping non-Synology Office file: {display_path}')
+                self.skipped_files += 1
                 return
 
             # Convert absolute path to relative by removing leading slashes
@@ -167,6 +248,8 @@ class SynologyOfficeExporter:
             logging.info(f'Downloading {display_path} => {output_path}')
             data = self.synd.download_synology_office_file(file_id)
             self.save_bytesio_to_file(data, output_path)
+
+            self.downloaded_files += 1
 
             # Save download info to history
             self.download_history[file_id] = {
@@ -209,11 +292,28 @@ class SynologyOfficeExporter:
     def save_bytesio_to_file(data: BytesIO, path: str):
         """
         Save the contents of a BytesIO object to a file.
+
+        This method creates any necessary parent directories before writing the file.
+        The BytesIO position is reset to the beginning before reading.
+
+        Args:
+            data: BytesIO object containing the file data
+            path: Destination file path where data will be saved
         """
         data.seek(0)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'wb') as f:
             f.write(data.getvalue())
+
+    def print_summary(self):
+        """
+        Display statistics for the execution results.
+        """
+        print("\n===== Download Results Summary =====")
+        print(f"Total files found for backup: {self.total_found_files}")
+        print(f"Files skipped: {self.skipped_files}")
+        print(f"Files downloaded: {self.downloaded_files}")
+        print("=====================================")
 
 
 if __name__ == '__main__':
