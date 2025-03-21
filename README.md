@@ -77,6 +77,21 @@ Authentication can be provided in three ways (in order of priority):
 - If you have a large number of files, the initial run may take some time.
 - Subsequent runs will only download changed files (unless the `--force` option is used).
 
+## Security Considerations
+
+When using this tool, please be aware of the following security aspects:
+
+- **Credentials Storage**: The `.env` file contains sensitive login credentials. Make sure to:
+  - Never commit this file to version control systems
+  - Set restrictive file permissions (e.g., `chmod 600 .env`)
+  - Store it only in secure locations
+
+- **Command Line Security**: Using credentials as command line arguments may expose them in your shell history or process listings. Prefer using the `.env` file or interactive prompt when possible.
+
+- **Network Security**: When connecting to your Synology NAS over the internet, ensure you're using a secure connection (HTTPS). Consider using a VPN if accessing your NAS remotely.
+
+- **Output Files**: Downloaded files inherit the permissions of the process running the tool. Be mindful of who has access to the output directory.
+
 ## Troubleshooting
 
 ### Runtime Errors

@@ -23,7 +23,13 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["build", "twine", "flake8>=7.1.2", "pre-commit>=2.15.0"]
+dev = [
+    "build",
+    "twine",
+    "flake8>=7.1.2",
+    "coverage>=7.0.0",
+    "pre-commit>=2.15.0",
+]
 
 [project.urls]
 "Homepage" = "https://github.com/isseis/synology-office-exporter"

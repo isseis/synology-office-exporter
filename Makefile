@@ -1,4 +1,4 @@
-.PHONY: run build install install-dev uninstall test lint venv-setup pre-commit upload-test clean
+.PHONY: run build coverage coverage-html install install-dev uninstall test lint venv-setup pre-commit upload-test clean
 
 build:
 	pip install build
@@ -18,6 +18,14 @@ uninstall:
 
 test:
 	python -m unittest discover -s tests -p 'test_*.py'
+
+coverage:
+	coverage run -m unittest discover -s tests -p 'test_*.py'
+	coverage report -m
+
+coverage-html:
+	coverage run -m unittest discover -s tests -p 'test_*.py'
+	coverage html
 
 lint:
 	flake8 --config .flake8

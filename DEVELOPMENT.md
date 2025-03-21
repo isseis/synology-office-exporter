@@ -79,6 +79,35 @@ or
 python -m unittest discover -s tests -p 'test_*.py'
 ```
 
+### Checking Test Coverage
+
+To check test coverage, you can use the `coverage` package:
+
+```bash
+# Run tests with coverage
+coverage run -m unittest discover -s tests -p 'test_*.py'
+
+# Generate coverage report
+coverage report -m
+
+# Generate HTML coverage report for detailed analysis
+coverage html
+```
+
+Alternatively, you can use the provided make commands for a more streamlined approach:
+
+```bash
+# Run tests with coverage
+make coverage
+
+# Generate HTML coverage report
+make coverage-html
+```
+
+The HTML report will be created in the `htmlcov` directory. Open `htmlcov/index.html` in your browser to view detailed coverage information for each file.
+
+Aim for maintaining a high test coverage (ideally above 80%) to ensure code quality and reliability. Pay special attention to complex logic paths and edge cases when writing tests.
+
 ### Linting
 
 To check code style with flake8:
