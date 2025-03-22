@@ -71,7 +71,7 @@ class SynologyOfficeExporter:
     """
 
     def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False,
-                 stat_buf: StringIO = None):
+                 stat_buf: StringIO = None, skip_history: bool = False):
         """
         Initialize the SynologyOfficeExporter with the given parameters.
 
@@ -79,12 +79,15 @@ class SynologyOfficeExporter:
             synd: SynologyDriveEx instance for API communication
             output_dir: Directory where converted files will be saved
             force_download: If True, files will be downloaded regardless of download history
+            stat_buf: StringIO buffer to write statistics output
+            skip_history: If True, download history will not be loaded or saved (for testing)
         """
         self.synd = synd
         self.output_dir = output_dir
         self.download_history_file = os.path.join(output_dir, '.download_history.json')
         self.download_history = {}
         self.force_download = force_download
+        self.skip_history = skip_history
         self.stat_buf = stat_buf
         self._load_download_history()
 
@@ -137,7 +140,7 @@ class SynologyOfficeExporter:
 
     def _load_download_history(self):
         """Load the download history from a JSON file."""
-        if not os.path.exists(self.download_history_file):
+        if self.skip_history or not os.path.exists(self.download_history_file):
             self.download_history = {}
             return
 

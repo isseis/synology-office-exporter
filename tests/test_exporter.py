@@ -126,7 +126,7 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         """Test that statistics are correctly written to the provided buffer."""
         stat_buf = StringIO()
 
-        with SynologyOfficeExporter(self.mock_synd, stat_buf=stat_buf) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, stat_buf=stat_buf, skip_history=True) as exporter:
             exporter.total_found_files = 3
             exporter.skipped_files = 2
             exporter.downloaded_files = 1
