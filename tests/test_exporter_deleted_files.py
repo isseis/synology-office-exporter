@@ -10,7 +10,7 @@ from io import BytesIO
 from synology_office_exporter.exporter import SynologyOfficeExporter
 
 
-class TestDeletedFiles(unittest.TestCase):
+class TestOfficeFileRemoval(unittest.TestCase):
     """Test suite for verifying proper cleanup of exported files when original Synology Office files are deleted."""
 
     def setUp(self):
@@ -67,7 +67,7 @@ class TestDeletedFiles(unittest.TestCase):
             exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
             exporter.download_history = self.sample_history.copy()
 
-            # Simulate that one file still exists on NAS (document.docx) and one is deleted (spreadsheet.xlsx)
+            # Simulate that one file still exists on NAS (document.odoc) and one is deleted (spreadsheet.osheet)
             exporter.current_file_paths = {"/path/to/document.odoc"}
 
             # Call the method to test
@@ -117,7 +117,7 @@ class TestDeletedFiles(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Simulate that one file is deleted from NAS
-            exporter.current_file_paths = {"document.docx"}
+            exporter.current_file_paths = {"/path/to/document.odoc"}
 
             # Call the method to test
             exporter._remove_deleted_files()
@@ -126,7 +126,7 @@ class TestDeletedFiles(unittest.TestCase):
             mock_remove.assert_not_called()
 
             # Check that the file is still removed from history
-            self.assertNotIn("spreadsheet.xlsx", exporter.download_history)
+            self.assertNotIn("/path/to/spreadsheet.osheet", exporter.download_history)
 
             # Check that the counter wasn't incremented (no actual deletion)
             self.assertEqual(exporter.deleted_files, 0)
@@ -174,7 +174,7 @@ class TestDeletedFiles(unittest.TestCase):
             "data": {"items": [
                 {"file_id": "file_id_1", "name": "document.odoc",
                     "display_path": "/path/to/document.odoc", "content_type": "document", "hash": "hash1"},
-                # spreadsheet.xlsx is missing, simulating it was deleted from NAS
+                # spreadsheet.osheet is missing, simulating it was deleted from NAS
             ]}
         }
         self.mock_synd.list_folder.return_value = mock_list_resp
@@ -204,44 +204,6 @@ class TestDeletedFiles(unittest.TestCase):
             # Check counters
             self.assertEqual(exporter.deleted_files, 1)
 
-    def test_download_mydrive_files_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-
-        # Make list_folder raise an exception
-        self.mock_synd.list_folder.side_effect = Exception("Network error")
-
-        # Call the method
-        exporter.download_mydrive_files()
-
-        # Verify exception flag was set
-        self.assertTrue(exporter.had_exceptions)
-
-    def test_download_shared_files_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-        exporter.download_history = self.sample_history.copy()
-
-        # Make list_folder raise an exception
-        self.mock_synd.shared_with_me.side_effect = Exception("Network error")
-
-        # Call the method
-        exporter.download_shared_files()
-
-        # Verify exception flag was set
-        self.assertTrue(exporter.had_exceptions)
-
-    def test_download_teamfolder_files_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-        exporter.download_history = self.sample_history.copy()
-
-        # Make list_folder raise an exception
-        self.mock_synd.get_teamfolder_info.side_effect = Exception("Network error")
-
-        # Call the method
-        exporter.download_teamfolder_files()
-
-        # Verify exception flag was set
-        self.assertTrue(exporter.had_exceptions)
-
     @patch('os.path.exists')
     @patch('os.remove')
     def test_exception_during_file_deletion_stops_further_deletions(self, mock_remove, mock_path_exists):
@@ -258,19 +220,6 @@ class TestDeletedFiles(unittest.TestCase):
 
         # Run the method
         exporter._remove_deleted_files()
-
-        # Verify exception flag was set
-        self.assertTrue(exporter.had_exceptions)
-
-    def test_process_document_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-        exporter.download_history = self.sample_history.copy()
-
-        # Make download_synology_office_file raise an exception
-        self.mock_synd.download_synology_office_file.side_effect = Exception("Download error")
-
-        # Call the method
-        exporter._process_document("testfile", "/path/to/test.odoc", "hash123")
 
         # Verify exception flag was set
         self.assertTrue(exporter.had_exceptions)
@@ -296,11 +245,6 @@ class TestDeletedFiles(unittest.TestCase):
     @patch('os.remove')
     def test_no_file_deletion_when_exception_occurs_and_captured(self, mock_remove):
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-        exporter.download_history = self.sample_history.copy()
-
-        # Mark document.docx as deleted (not in current_file_paths)
-        exporter.current_file_paths = {"spreadsheet.xlsx"}
-
         # Simulate an exception during processing, captured by except block which sets had_exceptions.
         exporter.had_exceptions = True
         exporter.__exit__(None, None, None)
@@ -311,11 +255,6 @@ class TestDeletedFiles(unittest.TestCase):
     @patch('os.remove')
     def test_no_file_deletion_when_exception_occurs_and_not_captured(self, mock_remove):
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-        exporter.download_history = self.sample_history.copy()
-
-        # Mark document.docx as deleted (not in current_file_paths)
-        exporter.current_file_paths = {"spreadsheet.xlsx"}
-
         # Simulate an exception during processing, and not captured.
         exporter.had_exceptions = False
         exporter.__exit__(ValueError, ValueError("Test exception"), None)

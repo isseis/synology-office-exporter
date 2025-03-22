@@ -143,6 +143,42 @@ class TestSynologyOfficeExporter(unittest.TestCase):
             "=====================================\n"
         )
 
+    def test_download_mydrive_files_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+
+        # Make list_folder raise an exception
+        self.mock_synd.list_folder.side_effect = Exception("Network error")
+
+        exporter.download_mydrive_files()
+        self.assertTrue(exporter.had_exceptions)
+
+    def test_download_shared_files_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+
+        # Make list_folder raise an exception
+        self.mock_synd.shared_with_me.side_effect = Exception("Network error")
+
+        exporter.download_shared_files()
+        self.assertTrue(exporter.had_exceptions)
+
+    def test_download_teamfolder_files_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+
+        # Make list_folder raise an exception
+        self.mock_synd.get_teamfolder_info.side_effect = Exception("Network error")
+
+        exporter.download_teamfolder_files()
+        self.assertTrue(exporter.had_exceptions)
+
+    def test_process_document_with_exception(self):
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+
+        # Make download_synology_office_file raise an exception
+        self.mock_synd.download_synology_office_file.side_effect = Exception("Download error")
+
+        exporter._process_document("testfile", "/path/to/test.odoc", "hash123")
+        self.assertTrue(exporter.had_exceptions)
+
 
 if __name__ == "__main__":
     unittest.main()

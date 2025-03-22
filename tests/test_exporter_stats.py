@@ -8,16 +8,8 @@ from io import BytesIO
 from synology_office_exporter.exporter import SynologyOfficeExporter
 
 
-class TestSynologyOfficeExporter(unittest.TestCase):
-    """
-    Test suite for the SynologyOfficeExporter class.
-
-    This class tests the functionality of the SynologyOfficeExporter, particularly focusing on:
-    - Statistics tracking and reporting
-
-    Each test case sets up a controlled environment with mocked dependencies
-    and temporary files to ensure tests are isolated and repeatable.
-    """
+class TestStats(unittest.TestCase):
+    """Test suite for the SynologyOfficeExporter stats functionality."""
 
     def setUp(self):
         # Create a mock for SynologyDriveEx
