@@ -17,27 +17,27 @@ class TestOfficeFileRemoval(unittest.TestCase):
         """Set up test environment before each test."""
         self.mock_synd = MagicMock()
 
-        self.output_dir = "/tmp/synology_office_exports"
-        self.history_file = os.path.join(self.output_dir, ".download_history.json")
+        self.output_dir = '/tmp/synology_office_exports'
+        self.history_file = os.path.join(self.output_dir, '.download_history.json')
 
         self.sample_history = {
-            "/path/to/document.odoc": {
-                "file_id": "file_id_1",
-                "hash": "hash1",
-                "path": "/path/to/document.odoc",
-                "download_time": "2023-01-01 12:00:00"
+            '/path/to/document.odoc': {
+                'file_id': 'file_id_1',
+                'hash': 'hash1',
+                'path': '/path/to/document.odoc',
+                'download_time': '2023-01-01 12:00:00'
             },
-            "/path/to/spreadsheet.osheet": {
-                "file_id": "file_id_2",
-                "hash": "hash2",
-                "path": "/path/to/spreadsheet.osheet",
-                "download_time": "2023-01-01 12:00:00"
+            '/path/to/spreadsheet.osheet': {
+                'file_id': 'file_id_2',
+                'hash': 'hash2',
+                'path': '/path/to/spreadsheet.osheet',
+                'download_time': '2023-01-01 12:00:00'
             }
         }
 
-    @patch("os.path.exists")
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("json.load")
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('json.load')
     def test_load_download_history(self, mock_json_load, mock_file_open, mock_path_exists):
         """Test that download history is loaded correctly."""
         mock_path_exists.return_value = True
@@ -57,8 +57,8 @@ class TestOfficeFileRemoval(unittest.TestCase):
         mock_file_open.assert_called_once_with(self.history_file, 'r')
         self.assertEqual(exporter.download_history, self.sample_history)
 
-    @patch("os.path.exists")
-    @patch("os.remove")
+    @patch('os.path.exists')
+    @patch('os.remove')
     def test_remove_deleted_files(self, mock_remove, mock_path_exists):
         """Test that files deleted from NAS are removed from the output directory."""
         mock_path_exists.return_value = True
@@ -68,20 +68,20 @@ class TestOfficeFileRemoval(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Simulate that one file still exists on NAS (document.odoc) and one is deleted (spreadsheet.osheet)
-            exporter.current_file_paths = {"/path/to/document.odoc"}
+            exporter.current_file_paths = {'/path/to/document.odoc'}
 
             # Call the method to test
             exporter._remove_deleted_files()
 
             # Check that the deleted file is removed from history
-            self.assertNotIn("/path/to/spreadsheet.osheet", exporter.download_history)
-            self.assertIn("/path/to/document.odoc", exporter.download_history)
+            self.assertNotIn('/path/to/spreadsheet.osheet', exporter.download_history)
+            self.assertIn('/path/to/document.odoc', exporter.download_history)
 
             # Check that the counter was incremented
             self.assertEqual(exporter.deleted_files, 1)
 
-    @patch("os.path.exists")
-    @patch("os.remove")
+    @patch('os.path.exists')
+    @patch('os.remove')
     def test_no_files_to_remove(self, mock_remove, mock_path_exists):
         """Test that no files are removed when all files still exist on NAS."""
         mock_path_exists.return_value = True
@@ -91,7 +91,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Simulate that all files still exist on the NAS
-            exporter.current_file_paths = {"/path/to/document.odoc", "/path/to/spreadsheet.osheet"}
+            exporter.current_file_paths = {'/path/to/document.odoc', '/path/to/spreadsheet.osheet'}
 
             # Call the method to test
             exporter._remove_deleted_files()
@@ -105,8 +105,8 @@ class TestOfficeFileRemoval(unittest.TestCase):
             # Check that the counter wasn't incremented
             self.assertEqual(exporter.deleted_files, 0)
 
-    @patch("os.path.exists")
-    @patch("os.remove")
+    @patch('os.path.exists')
+    @patch('os.remove')
     def test_file_already_removed(self, mock_remove, mock_path_exists):
         """Test handling of files that are already removed from the filesystem."""
         # Mock file existence check to return False (file is already gone)
@@ -117,7 +117,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Simulate that one file is deleted from NAS
-            exporter.current_file_paths = {"/path/to/document.odoc"}
+            exporter.current_file_paths = {'/path/to/document.odoc'}
 
             # Call the method to test
             exporter._remove_deleted_files()
@@ -126,15 +126,15 @@ class TestOfficeFileRemoval(unittest.TestCase):
             mock_remove.assert_not_called()
 
             # Check that the file is still removed from history
-            self.assertNotIn("/path/to/spreadsheet.osheet", exporter.download_history)
+            self.assertNotIn('/path/to/spreadsheet.osheet', exporter.download_history)
 
             # Check that the counter wasn't incremented (no actual deletion)
             self.assertEqual(exporter.deleted_files, 0)
 
-    @patch("os.makedirs")
-    @patch("builtins.open", new_callable=mock_open)
-    @patch("json.dump")
-    @patch("os.path.exists")
+    @patch('os.makedirs')
+    @patch('builtins.open', new_callable=mock_open)
+    @patch('json.dump')
+    @patch('os.path.exists')
     def test_save_updated_history(self, mock_path_exists, mock_json_dump, mock_file_open, mock_makedirs):
         """Test that updated history (after removal) is saved correctly."""
         mock_path_exists.return_value = True
@@ -149,7 +149,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
             with SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir) as exporter:
                 # Set partial history (as if spreadsheet.osheet has been deleted)
                 exporter.download_history = {
-                    "/path/to/document.odoc": self.sample_history["/path/to/document.odoc"]
+                    '/path/to/document.odoc': self.sample_history['/path/to/document.odoc']
                 }
                 # Json dump should be called when exiting the context manager
 
@@ -160,25 +160,25 @@ class TestOfficeFileRemoval(unittest.TestCase):
                                  '_meta': mock_get_metadata.return_value,
                                  'files': exporter.download_history
                              })
-            self.assertIn("/path/to/document.odoc", saved_data['files'])
-            self.assertNotIn("/path/to/spreadsheet.osheet", saved_data['files'])
+            self.assertIn('/path/to/document.odoc', saved_data['files'])
+            self.assertNotIn('/path/to/spreadsheet.osheet', saved_data['files'])
 
-    @patch("os.path.exists")
+    @patch('os.path.exists')
     def test_end_to_end_process(self, mock_path_exists):
         """Test the complete process of tracking and removing deleted files."""
         mock_path_exists.return_value = True
 
         # Mock SynologyDriveEx methods
         mock_list_resp = {
-            "success": True,
-            "data": {"items": [
-                {"file_id": "file_id_1", "name": "document.odoc",
-                    "display_path": "/path/to/document.odoc", "content_type": "document", "hash": "hash1"},
+            'success': True,
+            'data': {'items': [
+                {'file_id': 'file_id_1', 'name': 'document.odoc',
+                    'display_path': '/path/to/document.odoc', 'content_type': 'document', 'hash': 'hash1'},
                 # spreadsheet.osheet is missing, simulating it was deleted from NAS
             ]}
         }
         self.mock_synd.list_folder.return_value = mock_list_resp
-        self.mock_synd.download_synology_office_file.return_value = BytesIO(b"file content")
+        self.mock_synd.download_synology_office_file.return_value = BytesIO(b'file content')
 
         with patch.object(SynologyOfficeExporter, '_load_download_history'), \
                 patch.object(SynologyOfficeExporter, '_save_download_history'), \
@@ -189,17 +189,17 @@ class TestOfficeFileRemoval(unittest.TestCase):
             exporter.download_history = self.sample_history.copy()
 
             # Process directory which only has document.docx now
-            exporter._process_directory("dir_id", "test_dir")
+            exporter._process_directory('dir_id', 'test_dir')
 
             # Exit to trigger the removal of deleted files
             exporter.__exit__(None, None, None)
 
             # Verify spreadsheet.xlsx was removed
             mock_remove.assert_called_once_with(
-                os.path.join(self.output_dir, "path/to/spreadsheet.xlsx"))
+                os.path.join(self.output_dir, 'path/to/spreadsheet.xlsx'))
 
             # Check history was updated
-            self.assertNotIn("/path/to/spreadsheet.osheet", exporter.download_history)
+            self.assertNotIn('/path/to/spreadsheet.osheet', exporter.download_history)
 
             # Check counters
             self.assertEqual(exporter.deleted_files, 1)
@@ -216,7 +216,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
         exporter.current_file_paths = set()
 
         # Make first deletion raise an exception
-        mock_remove.side_effect = Exception("Permission denied")
+        mock_remove.side_effect = Exception('Permission denied')
 
         # Run the method
         exporter._remove_deleted_files()
@@ -224,7 +224,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
         # Verify exception flag was set
         self.assertTrue(exporter.had_exceptions)
 
-    @patch("os.path.exists")
+    @patch('os.path.exists')
     @patch('os.remove')
     def test_file_deletion_in_context_manager(self, mock_remove, mock_path_exists):
         mock_path_exists.return_value = True
@@ -233,7 +233,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
         exporter.download_history = self.sample_history.copy()
 
         # Mark document.docx as deleted (not in current_file_paths)
-        exporter.current_file_paths = {"/path/to/spreadsheet.osheet"}
+        exporter.current_file_paths = {'/path/to/spreadsheet.osheet'}
 
         # Ensure no exceptions
         exporter.had_exceptions = False
@@ -257,11 +257,11 @@ class TestOfficeFileRemoval(unittest.TestCase):
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
         # Simulate an exception during processing, and not captured.
         exporter.had_exceptions = False
-        exporter.__exit__(ValueError, ValueError("Test exception"), None)
+        exporter.__exit__(ValueError, ValueError('Test exception'), None)
 
         # Verify no files were deleted
         mock_remove.assert_not_called()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()

@@ -82,15 +82,15 @@ def main():  # noqa: D103
 
     # If still missing credentials, prompt the user
     if not username:
-        username = input("Synology username: ")
+        username = input('Synology username: ')
     if not password:
-        password = getpass.getpass("Synology password: ")
+        password = getpass.getpass('Synology password: ')
     if not server:
-        server = input("Synology server URL: ")
+        server = input('Synology server URL: ')
 
     # Check if all required credentials are set
     if not all([username, password, server]):
-        logging.error("Missing credentials. Please provide username, password, and server.")
+        logging.error('Missing credentials. Please provide username, password, and server.')
         return 1
 
     try:
@@ -105,12 +105,12 @@ def main():  # noqa: D103
                 exporter.download_teamfolder_files()
             print(stat_buf.getvalue())
 
-        logging.info("Done!")
+        logging.info('Done!')
         return 0
     except DownloadHistoryError as e:
-        logging.error("Error occurred while loading download history file.")
-        print(f"Error: Problem with download history file - {e}", file=sys.stderr)
+        logging.error('Error occurred while loading download history file.')
+        print(f'Error: Problem with download history file - {e}', file=sys.stderr)
         return 1
     except Exception as e:
-        logging.error(f"Error: {e}")
+        logging.error(f'Error: {e}')
         return 1
