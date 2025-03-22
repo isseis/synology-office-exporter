@@ -320,7 +320,6 @@ class SynologyOfficeExporter:
             self.download_history[display_path] = {
                 'file_id': file_id,
                 'hash': hash,
-                'output_path': output_path,
                 'download_time': str(datetime.now())
             }
         except Exception as e:

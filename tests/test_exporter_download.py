@@ -271,7 +271,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
                 'file_id': '123',
                 'hash': 'abc123',
                 'path': 'path/to/test.osheet',
-                'output_path': './test.xlsx',
                 'download_time': '2023-01-01 12:00:00'
             }
         }
@@ -296,7 +295,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
                 'file_id': '123',
                 'hash': 'old-hash',
                 'path': 'path/to/test.osheet',
-                'output_path': './test.xlsx',
                 'download_time': '2023-01-01 12:00:00'
             }
         }
@@ -331,7 +329,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         self.assertIn('path/to/new.osheet', exporter.download_history)
         self.assertEqual(exporter.download_history['path/to/new.osheet']['file_id'], '456')
         self.assertEqual(exporter.download_history['path/to/new.osheet']['hash'], 'new-file-hash')
-        self.assertEqual(exporter.download_history['path/to/new.osheet']['output_path'], './path/to/new.xlsx')
 
     @patch('json.load')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
@@ -340,8 +337,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         """Test that download history is correctly loaded from file."""
         mock_exists.return_value = True
         mock_json_load.return_value = {
-            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet', 'output_path': './test.xlsx'},
-            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet', 'output_path': './test2.xlsx'}
+            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet'},
+            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet'}
         }
 
         exporter = SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
@@ -362,10 +359,8 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         """Test that download history is correctly saved to file."""
         exporter = SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
         exporter.download_history = {
-            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet',
-                            'output_path': '/test/dir/test.xlsx'},
-            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet',
-                             'output_path': '/test/dir/test2.xlsx'}
+            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet'},
+            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet'}
         }
 
         exporter._save_download_history()
@@ -406,7 +401,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
                 'file_id': '123',
                 'hash': 'abc123',
                 'path': 'path/to/test.osheet',
-                'output_path': './test.xlsx',
                 'download_time': '2023-01-01 12:00:00'
             }
         }

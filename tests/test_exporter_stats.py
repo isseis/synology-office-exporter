@@ -78,7 +78,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
                 'file_id': file_id,
                 'hash': file_hash,
                 'path': display_path,
-                'output_path': os.path.join(self.temp_dir, 'test_document.docx'),
                 'download_time': '2023-01-01 00:00:00'
             }
         }
@@ -126,7 +125,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
                 'file_id': file_id,
                 'hash': file_hash,
                 'path': display_path,
-                'output_path': os.path.join(self.temp_dir, 'test_document.docx'),
                 'download_time': '2023-01-01 00:00:00'
             }
         }

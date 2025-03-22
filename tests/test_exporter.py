@@ -70,7 +70,6 @@ class TestSynologyOfficeExporter(unittest.TestCase):
                 "file_id_1": {
                     "hash": "hash1",
                     "path": "/path/to/document.odoc",
-                    "output_path": os.path.join(self.output_dir, "document.docx"),
                     "download_time": "2023-01-01 12:00:00"
                 }
             }
