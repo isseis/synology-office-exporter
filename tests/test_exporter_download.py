@@ -337,8 +337,16 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         """Test that download history is correctly loaded from file."""
         mock_exists.return_value = True
         mock_json_load.return_value = {
-            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet'},
-            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet'}
+            '_meta': {
+                'version': 1,
+                'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
+            },
+            'files': {
+                'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet'},
+                'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet'}
+            }
         }
 
         exporter = SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
@@ -348,7 +356,7 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
         mock_json_load.assert_called_once()
 
-        # Verify history was loaded correctly
+        # Verify history was loaded correctly - files should be in download_history
         self.assertEqual(len(exporter.download_history), 2)
         self.assertEqual(exporter.download_history['test.osheet']['hash'], 'abc123')
 
@@ -368,7 +376,15 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         # Verify file operations
         mock_makedirs.assert_called_once_with('/test/dir', exist_ok=True)
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'w')
-        mock_json_dump.assert_called_once_with(exporter.download_history, mock_open())
+
+        # Verify the saved data (check that metadata and required file data are included)
+        actual_data = mock_json_dump.call_args[0][0]
+        self.assertIn('_meta', actual_data)
+        self.assertIn('files', actual_data)
+        self.assertEqual(actual_data['files'], exporter.download_history)
+        self.assertEqual(actual_data['_meta']['magic'], 'SYNOLOGY_OFFICE_EXPORTER')
+        self.assertEqual(actual_data['_meta']['version'], 1)
+        self.assertEqual(actual_data['_meta']['program'], 'synology-office-exporter')
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._save_download_history')
@@ -397,7 +413,7 @@ class TestSynologyOfficeExporter(unittest.TestCase):
 
         exporter = SynologyOfficeExporter(mock_synd, output_dir='.', force_download=True)
         exporter.download_history = {
-            'ath/to/test.osheet': {
+            'path/to/test.osheet': {
                 'file_id': '123',
                 'hash': 'abc123',
                 'path': 'path/to/test.osheet',

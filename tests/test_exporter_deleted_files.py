@@ -41,7 +41,15 @@ class TestDeletedFiles(unittest.TestCase):
     def test_load_download_history(self, mock_json_load, mock_file_open, mock_path_exists):
         """Test that download history is loaded correctly."""
         mock_path_exists.return_value = True
-        mock_json_load.return_value = self.sample_history
+        mock_json_load.return_value = {
+            '_meta': {
+                'version': 1,
+                'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
+            },
+            'files': self.sample_history
+        }
 
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
 
@@ -126,23 +134,34 @@ class TestDeletedFiles(unittest.TestCase):
     @patch("os.makedirs")
     @patch("builtins.open", new_callable=mock_open)
     @patch("json.dump")
-    def test_save_updated_history(self, mock_json_dump, mock_file_open, mock_makedirs):
+    @patch("os.path.exists")
+    def test_save_updated_history(self, mock_path_exists, mock_json_dump, mock_file_open, mock_makedirs):
         """Test that updated history (after removal) is saved correctly."""
-        with patch.object(SynologyOfficeExporter, '_load_download_history'):
-            exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        mock_path_exists.return_value = True
+        with patch.object(SynologyOfficeExporter, '_load_download_history'), \
+                patch.object(SynologyOfficeExporter, '_get_metadata') as mock_get_metadata:
+            mock_get_metadata.return_value = {
+                "version": 1,
+                "magic": "SYNOLOGY_OFFICE_EXPORTER",
+                "created": "2023-01-01 12:00:00",
+                "program": "synology-office-exporter"
+            }
+            with SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir) as exporter:
+                # Set partial history (as if spreadsheet.osheet has been deleted)
+                exporter.download_history = {
+                    "/path/to/document.odoc": self.sample_history["/path/to/document.odoc"]
+                }
+                # Json dump should be called when exiting the context manager
 
-            # Set a partial history (as if spreadsheet.xlsx was deleted)
-            exporter.download_history = {"/path/to/document.odoc": self.sample_history["/path/to/document.odoc"]}
-
-            # Call exit to trigger save
-            exporter.__exit__(None, None, None)
-
-            # Verify history was saved with updated content
-            mock_file_open.assert_called_with(self.history_file, 'w')
             mock_json_dump.assert_called_once()
-            # Verify that spreadsheet.xlsx is not in the saved history
-            saved_history = mock_json_dump.call_args[0][0]
-            self.assertNotIn("/path/to/spreadsheet.osheet", saved_history)
+            saved_data = mock_json_dump.call_args[0][0]
+            self.assertEqual(saved_data,
+                             {
+                                 '_meta': mock_get_metadata.return_value,
+                                 'files': exporter.download_history
+                             })
+            self.assertIn("/path/to/document.odoc", saved_data['files'])
+            self.assertNotIn("/path/to/spreadsheet.osheet", saved_data['files'])
 
     @patch("os.path.exists")
     def test_end_to_end_process(self, mock_path_exists):

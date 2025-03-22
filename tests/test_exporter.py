@@ -63,27 +63,40 @@ class TestSynologyOfficeExporter(unittest.TestCase):
     def test_save_download_history(self, mock_json_dump, mock_file_open):
         """Test that download history is saved correctly."""
         with patch.object(SynologyOfficeExporter, '_load_download_history'):
-            exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-
-            # Set a sample history
-            sample_history = {
-                "file_id_1": {
-                    "hash": "hash1",
-                    "path": "/path/to/document.odoc",
-                    "download_time": "2023-01-01 12:00:00"
+            with patch.object(SynologyOfficeExporter, '_get_metadata') as mock_get_metadata:
+                mock_get_metadata.return_value = {
+                    'version': 1,
+                    'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                    'created': '2025-03-22 14:43:44.966404',
+                    'program': 'synology-office-exporter'
                 }
-            }
-            exporter.download_history = sample_history
 
-            # Trigger save
-            exporter._save_download_history()
+                exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
 
-            # Verify file was opened correctly
-            history_file = os.path.join(self.output_dir, ".download_history.json")
-            mock_file_open.assert_called_with(history_file, 'w')
+                # Set a sample history
+                sample_history = {
+                    "file_id_1": {
+                        "hash": "hash1",
+                        "path": "/path/to/document.odoc",
+                        "download_time": "2023-01-01 12:00:00"
+                    }
+                }
+                exporter.download_history = sample_history
 
-            # Verify history was dumped
-            mock_json_dump.assert_called_once_with(sample_history, mock_file_open())
+                # Trigger save
+                exporter._save_download_history()
+
+                # Verify file was opened correctly
+                history_file = os.path.join(self.output_dir, ".download_history.json")
+                mock_file_open.assert_called_with(history_file, 'w')
+
+                # Verify history was dumped
+                mock_json_dump.assert_called_once_with(
+                    {
+                        '_meta': mock_get_metadata.return_value,
+                        'files': sample_history
+                    },
+                    mock_file_open())
 
     @patch("os.path.exists")
     @patch("builtins.open", new_callable=mock_open)

@@ -28,6 +28,7 @@ from typing import Optional
 import json
 from datetime import datetime
 
+from synology_office_exporter.exception import DownloadHistoryError
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
 # Mapping of log level strings to actual log levels
@@ -38,6 +39,10 @@ LOG_LEVELS = {
     'error': logging.ERROR,
     'critical': logging.CRITICAL
 }
+
+# Constants for the download history file
+HISTORY_VERSION = 1
+HISTORY_MAGIC = "SYNOLOGY_OFFICE_EXPORTER"
 
 
 class SynologyOfficeExporter:
@@ -132,21 +137,53 @@ class SynologyOfficeExporter:
 
     def _load_download_history(self):
         """Load the download history from a JSON file."""
-        try:
-            if os.path.exists(self.download_history_file):
-                with open(self.download_history_file, 'r') as f:
-                    self.download_history = json.load(f)
-                logging.info(f"Loaded download history for {len(self.download_history)} files")
-        except Exception as e:
-            logging.error(f"Error loading download history: {e}")
+        if not os.path.exists(self.download_history_file):
             self.download_history = {}
+            return
+
+        with open(self.download_history_file, 'r') as f:
+            history_data = json.load(f)
+
+        # Check if the history file has version information
+        if isinstance(history_data, dict) and '_meta' in history_data:
+            meta = history_data['_meta']
+
+            # Verify magic number
+            if meta.get('magic') != HISTORY_MAGIC:
+                raise DownloadHistoryError(
+                    f"History file has incorrect magic number. Expected {HISTORY_MAGIC}, got {meta.get('magic')}")
+
+            # Check version compatibility
+            version = meta.get('version', 0)
+            if version > HISTORY_VERSION:
+                raise DownloadHistoryError(
+                    f"History file version {version} is newer than current version {HISTORY_VERSION}. ")
+
+            # Extract the actual file history
+            self.download_history = history_data.get('files', {})
+
+    @staticmethod
+    def _get_metadata():
+        return {
+            "version": HISTORY_VERSION,
+            "magic": HISTORY_MAGIC,
+            "created": str(datetime.now()),
+            "program": "synology-office-exporter"
+        }
 
     def _save_download_history(self):
         """Save the download history to a JSON file."""
         try:
             os.makedirs(os.path.dirname(self.download_history_file), exist_ok=True)
+
+            # Create history data with metadata
+            history_data = {
+                "_meta": self._get_metadata(),
+                "files": self.download_history
+            }
+
             with open(self.download_history_file, 'w') as f:
-                json.dump(self.download_history, f)
+                json.dump(history_data, f)
             logging.info(f"Saved download history for {len(self.download_history)} files")
         except Exception as e:
             logging.error(f"Error saving download history: {e}")

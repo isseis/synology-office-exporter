@@ -29,7 +29,9 @@ import getpass
 import io
 import logging
 import os
+import sys
 from dotenv import load_dotenv
+from synology_office_exporter.exception import DownloadHistoryError
 from synology_office_exporter.exporter import SynologyOfficeExporter
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
@@ -105,6 +107,10 @@ def main():  # noqa: D103
 
         logging.info("Done!")
         return 0
+    except DownloadHistoryError as e:
+        logging.error("Error occurred while loading download history file.")
+        print(f"Error: Problem with download history file - {e}", file=sys.stderr)
+        return 1
     except Exception as e:
         logging.error(f"Error: {e}")
         return 1
