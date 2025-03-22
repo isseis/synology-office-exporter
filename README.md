@@ -2,6 +2,7 @@
 ![Python](https://img.shields.io/badge/python-v3.6+-blue.svg)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](https://opensource.org/licenses/MIT)
 ![Contributions welcome](https://img.shields.io/badge/contributions-welcome-orange.svg)
+[![Python App](https://github.com/isseis/synology-office-exporter/actions/workflows/python-app.yml/badge.svg)](https://github.com/isseis/synology-office-exporter/actions/workflows/python-app.yml)
 
 This tool downloads Synology Office files from your Synology NAS and converts them to Microsoft Office formats. It processes Synology Office documents from your personal My Drive, team folders, and shared files, converting them to their corresponding Microsoft Office formats.
 
