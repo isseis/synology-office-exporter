@@ -184,6 +184,49 @@ You can install the locally built package for testing:
 pip install dist/*.whl
 ```
 
+## File Formats
+
+### Download History File
+
+The download history is stored in a JSON file to track which files have been previously downloaded. By default, this file is named `.download_history.json` and is stored in the output directory (e.g., `out/.download_history.json`).
+
+Based on the actual implementation, the file format is as follows:
+```json
+{
+  "_meta": {
+    "version": 1,
+    "magic": "SYNOLOGY_OFFICE_EXPORTER_HISTORY",
+    "created": "2023-09-15T22:14:32.456789",
+    "generator": "synology-office-exporter 0.1.0"
+  },
+  "files": {
+    "/mydrive/sample.odoc": {
+      "file_id": "873625468996202503",
+      "hash": "fa114872a44e2741aad1840202a096e5",
+      "download_time": "2025-03-22 15:52:38.543378"
+    },
+    "/shared-with-me/Documents/test5.odoc": {
+      "file_id": "873441590473964286",
+      "hash": "83481ff648006182790a7786feaaa26b",
+      "download_time": "2025-03-22 15:56:44.892014"
+    }
+  }
+}
+```
+
+Where:
+- `_meta`: Metadata about the history file
+  - `version`: Schema version for future compatibility (integer)
+  - `magic`: Fixed identifier string to confirm file type
+  - `created`: ISO 8601 formatted timestamp when the history file was created
+  - `generator`: Name and version of the program that created this file
+- `files`: Dictionary of downloaded files keyed by their file path as it appears in Synology Drive
+    - `file_id`: Synology Drive's unique identifier for the file
+    - `hash`: hash of the file content provided by Synology NAS for detecting changes
+    - `download_time`: ISO 8601 formatted timestamp when the file was last downloaded
+
+The download history is used to implement the incremental download feature, which only downloads files that have been created or modified since the last run.
+
 #### Deploying to PyPI (Test)
 
 For testing the deployment process, you can use the PyPI test environment:

@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO
 
-from synology_office_exporter.exporter import SynologyOfficeExporter
+from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
 
 
 class TestOfficeFileRemoval(unittest.TestCase):
@@ -44,7 +44,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
         mock_json_load.return_value = {
             '_meta': {
                 'version': 1,
-                'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                'magic': HISTORY_MAGIC,
                 'created': '2023-01-01 12:00:00',
                 'program': 'synology-office-exporter'
             },
@@ -141,10 +141,10 @@ class TestOfficeFileRemoval(unittest.TestCase):
         with patch.object(SynologyOfficeExporter, '_load_download_history'), \
                 patch.object(SynologyOfficeExporter, '_get_metadata') as mock_get_metadata:
             mock_get_metadata.return_value = {
-                "version": 1,
-                "magic": "SYNOLOGY_OFFICE_EXPORTER",
-                "created": "2023-01-01 12:00:00",
-                "program": "synology-office-exporter"
+                'version': 1,
+                'magic': HISTORY_MAGIC,
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
             }
             with SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir) as exporter:
                 # Set partial history (as if spreadsheet.osheet has been deleted)

@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO, StringIO
 import os
 
-from synology_office_exporter.exporter import SynologyOfficeExporter
+from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
 
 
 class TestSynologyOfficeExporter(unittest.TestCase):
@@ -66,7 +66,7 @@ class TestSynologyOfficeExporter(unittest.TestCase):
             with patch.object(SynologyOfficeExporter, '_get_metadata') as mock_get_metadata:
                 mock_get_metadata.return_value = {
                     'version': 1,
-                    'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                    'magic': HISTORY_MAGIC,
                     'created': '2025-03-22 14:43:44.966404',
                     'program': 'synology-office-exporter'
                 }

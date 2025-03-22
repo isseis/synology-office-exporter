@@ -4,7 +4,7 @@ import unittest
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
 import os
-from synology_office_exporter.exporter import SynologyOfficeExporter
+from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
 
@@ -310,7 +310,7 @@ class TestDownload(unittest.TestCase):
         mock_json_load.return_value = {
             '_meta': {
                 'version': 1,
-                'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                'magic': HISTORY_MAGIC,
                 'created': '2023-01-01 12:00:00',
                 'program': 'synology-office-exporter'
             },
@@ -353,7 +353,7 @@ class TestDownload(unittest.TestCase):
         self.assertIn('_meta', actual_data)
         self.assertIn('files', actual_data)
         self.assertEqual(actual_data['files'], exporter.download_history)
-        self.assertEqual(actual_data['_meta']['magic'], 'SYNOLOGY_OFFICE_EXPORTER')
+        self.assertEqual(actual_data['_meta']['magic'], HISTORY_MAGIC)
         self.assertEqual(actual_data['_meta']['version'], 1)
         self.assertEqual(actual_data['_meta']['program'], 'synology-office-exporter')
 
@@ -451,7 +451,7 @@ class TestDownload(unittest.TestCase):
         mock_json_load.return_value = {
             '_meta': {
                 'version': 999,  # Very new version
-                'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                'magic': HISTORY_MAGIC,
                 'created': '2023-01-01 12:00:00',
                 'program': 'synology-office-exporter'
             },
