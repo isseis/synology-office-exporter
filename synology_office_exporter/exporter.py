@@ -42,7 +42,7 @@ LOG_LEVELS = {
 
 # Constants for the download history file
 HISTORY_VERSION = 1
-HISTORY_MAGIC = "SYNOLOGY_OFFICE_EXPORTER"
+HISTORY_MAGIC = 'SYNOLOGY_OFFICE_EXPORTER'
 
 
 class SynologyOfficeExporter:
@@ -64,7 +64,7 @@ class SynologyOfficeExporter:
     - Removes MS Office files when the source Synology Office files are deleted
 
     Usage example:
-        with SynologyOfficeExporter(synd_client, output_dir="./exports") as exporter:
+        with SynologyOfficeExporter(synd_client, output_dir='./exports') as exporter:
             exporter.download_mydrive_files()
             exporter.download_teamfolder_files()
             exporter.download_shared_files()
@@ -127,13 +127,13 @@ class SynologyOfficeExporter:
         # Set exception flag if an exception occurred
         if exc_type is not None:
             self.had_exceptions = True
-            logging.warning("Exception occurred during processing, skipping file deletion")
+            logging.warning('Exception occurred during processing, skipping file deletion')
 
         # Only remove deleted files if no exceptions occurred
         if not self.had_exceptions:
             self._remove_deleted_files()
         else:
-            logging.info("Skipping file deletion due to exceptions during processing")
+            logging.info('Skipping file deletion due to exceptions during processing')
 
         self._save_download_history()
         self._dump_summary()
@@ -148,8 +148,8 @@ class SynologyOfficeExporter:
             with open(self.download_history_file, 'r') as f:
                 history_data = json.load(f)
         except Exception as e:
-            logging.error(f"Error loading download history: {e}")
-            raise DownloadHistoryError(f"Error loading download history file: {e}")
+            logging.error(f'Error loading download history: {e}')
+            raise DownloadHistoryError(f'Error loading download history file: {e}')
 
         # Check if the history file has version information
         if isinstance(history_data, dict) and '_meta' in history_data:
@@ -158,13 +158,13 @@ class SynologyOfficeExporter:
             # Verify magic number
             if meta.get('magic') != HISTORY_MAGIC:
                 raise DownloadHistoryError(
-                    f"History file has incorrect magic number. Expected {HISTORY_MAGIC}, got {meta.get('magic')}")
+                    f'History file has incorrect magic number. Expected {HISTORY_MAGIC}, got {meta.get("magic")}')
 
             # Check version compatibility
             version = meta.get('version', 0)
             if version > HISTORY_VERSION:
                 raise DownloadHistoryError(
-                    f"History file version {version} is newer than current version {HISTORY_VERSION}. ")
+                    f'History file version {version} is newer than current version {HISTORY_VERSION}. ')
 
             # Extract the actual file history
             self.download_history = history_data.get('files', {})
@@ -172,10 +172,10 @@ class SynologyOfficeExporter:
     @staticmethod
     def _get_metadata():
         return {
-            "version": HISTORY_VERSION,
-            "magic": HISTORY_MAGIC,
-            "created": str(datetime.now()),
-            "program": "synology-office-exporter"
+            'version': HISTORY_VERSION,
+            'magic': HISTORY_MAGIC,
+            'created': str(datetime.now()),
+            'program': 'synology-office-exporter'
         }
 
     def _save_download_history(self):
@@ -185,15 +185,15 @@ class SynologyOfficeExporter:
 
             # Create history data with metadata
             history_data = {
-                "_meta": self._get_metadata(),
-                "files": self.download_history
+                '_meta': self._get_metadata(),
+                'files': self.download_history
             }
 
             with open(self.download_history_file, 'w') as f:
                 json.dump(history_data, f)
-            logging.info(f"Saved download history for {len(self.download_history)} files")
+            logging.info(f'Saved download history for {len(self.download_history)} files')
         except Exception as e:
-            logging.error(f"Error saving download history: {e}")
+            logging.error(f'Error saving download history: {e}')
 
     def _remove_deleted_files(self):
         """
@@ -202,30 +202,32 @@ class SynologyOfficeExporter:
         This method identifies files that exist in the download history but not in the current
         file list, deletes those files from the local filesystem, and updates the download history.
         """
-        logging.info("Removing deleted files...")
+        logging.info('Removing deleted files...')
         deleted_file_paths = set(self.download_history.keys()) - self.current_file_paths
         for file_path in deleted_file_paths:
             try:
                 offline_name = self.get_offline_name(file_path)
-                # TODO: offline_name s None
+                if offline_name is None:
+                    logging.error(f'Cannot determine offline name for {file_path}')
+                    continue
                 output_path = os.path.join(self.output_dir, offline_name.lstrip('/'))
 
                 if os.path.exists(output_path):
-                    logging.info(f"Removing deleted file: {output_path}")
+                    logging.info(f'Removing deleted file: {output_path}')
                     os.remove(output_path)
                     self.deleted_files += 1
                 else:
-                    logging.debug(f"File already removed: {output_path}")
+                    logging.warning(f'File already removed: {output_path}')
 
                 # Remove from download history
                 del self.download_history[file_path]
 
             except Exception as e:
-                logging.error(f"Error removing deleted file {file_path}: {e}")
+                logging.error(f'Error removing deleted file {file_path}: {e}')
                 # Set the exception flag to prevent future deletions in this session
                 self.had_exceptions = True
 
-        logging.info(f"Removed {self.deleted_files} files that were deleted from the NAS")
+        logging.info(f'Removed {self.deleted_files} files that were deleted from the NAS')
 
     def download_mydrive_files(self):
         """
@@ -260,7 +262,7 @@ class SynologyOfficeExporter:
                 try:
                     self._process_item(item)
                 except Exception as e:
-                    logging.error(f"Error processing shared item {item.get('name')}: {e}")
+                    logging.error(f'Error processing shared item {item.get("name")}: {e}')
                     self.had_exceptions = True
         except Exception as e:
             logging.error(f'Error accessing shared files: {e}')
@@ -303,7 +305,7 @@ class SynologyOfficeExporter:
                     return
                 self._process_document(file_id, display_path, hash)
         except Exception as e:
-            logging.error(f"Error processing item {item.get('name')}: {e}")
+            logging.error(f'Error processing item {item.get("name")}: {e}')
             self.had_exceptions = True
 
     def _process_directory(self, file_id: str, dir_name: str):
@@ -312,7 +314,7 @@ class SynologyOfficeExporter:
         try:
             resp = self.synd.list_folder(file_id)
             if not resp['success']:
-                logging.error(f"Failed to list folder {dir_name}: {resp.get('error')}")
+                logging.error(f'Failed to list folder {dir_name}: {resp.get("error")}')
                 self.had_exceptions = True
                 return
 
@@ -419,15 +421,15 @@ class SynologyOfficeExporter:
         Dump statistics for the execution results.
         """
         if self.stat_buf is not None:
-            self.stat_buf.write("\n===== Download Results Summary =====\n\n")
-            self.stat_buf.write(f"Total files found for backup: {self.total_found_files}\n")
-            self.stat_buf.write(f"Files skipped: {self.skipped_files}\n")
-            self.stat_buf.write(f"Files downloaded: {self.downloaded_files}\n")
-            self.stat_buf.write(f"Files deleted: {self.deleted_files}\n")
-            self.stat_buf.write("=====================================\n")
+            self.stat_buf.write('\n===== Download Results Summary =====\n\n')
+            self.stat_buf.write(f'Total files found for backup: {self.total_found_files}\n')
+            self.stat_buf.write(f'Files skipped: {self.skipped_files}\n')
+            self.stat_buf.write(f'Files downloaded: {self.downloaded_files}\n')
+            self.stat_buf.write(f'Files deleted: {self.deleted_files}\n')
+            self.stat_buf.write('=====================================\n')
 
 
 if __name__ == '__main__':
-    print("This file is a library. Please use main.py to run the program.")
-    print("Example: python main.py --help")
+    print('This file is a library. Please use main.py to run the program.')
+    print('Example: python main.py --help')
     sys.exit(1)

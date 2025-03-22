@@ -4,3 +4,7 @@ exclude = .git,.venv/,__pycache__,build,dist
 ignore = D107, D200, D400, D401, E203, W503
 per-file-ignores =
     tests/test_*.py:D102
+    synology_office_exporter/__main__.py:D100
+inline-quotes = single
+multiline-quotes = single
+docstring-quotes = double

@@ -155,7 +155,7 @@ class TestDownload(unittest.TestCase):
         # Make the second file raise an exception when processed
         def side_effect(item):
             if item['file_id'] == '456':
-                raise Exception("Test error")
+                raise Exception('Test error')
             return None
         mock_process_item.side_effect = side_effect
 
@@ -174,7 +174,7 @@ class TestDownload(unittest.TestCase):
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
     def test_exception_handling_mydrive(self, mock_process_directory):
         """Test that exceptions in _process_directory do not stop execution."""
-        mock_process_directory.side_effect = Exception("Test error")
+        mock_process_directory.side_effect = Exception('Test error')
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
         exporter.download_mydrive_files()
@@ -194,7 +194,7 @@ class TestDownload(unittest.TestCase):
         # Make processing of 'Team Folder 2' raise an exception
         def side_effect(file_id, name):
             if file_id == '222':
-                raise Exception("Test error")
+                raise Exception('Test error')
             return None
         mock_process_directory.side_effect = side_effect
 
@@ -211,7 +211,7 @@ class TestDownload(unittest.TestCase):
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_exception_handling_download_synology(self, mock_save, mock_download):
         """Test that exceptions during file download do not stop processing."""
-        mock_download.side_effect = Exception("Download failed")
+        mock_download.side_effect = Exception('Download failed')
         self.mock_synd.download_synology_office_file = mock_download
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
@@ -223,7 +223,7 @@ class TestDownload(unittest.TestCase):
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_exception_handling_download(self, mock_save):
         """Test that exceptions during file download do not stop processing."""
-        self.mock_synd.download_synology_office_file.side_effect = Exception("Download failed")
+        self.mock_synd.download_synology_office_file.side_effect = Exception('Download failed')
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
         exporter._process_document('123', 'path/to/test.osheet', hash=None)
@@ -404,7 +404,7 @@ class TestDownload(unittest.TestCase):
         """Test that an error is raised when the download history file is corrupt."""
         mock_exists.return_value = True
         # Simulate an error caused by invalid JSON
-        mock_json_load.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
+        mock_json_load.side_effect = json.JSONDecodeError('Invalid JSON', '', 0)
 
         from synology_office_exporter.exception import DownloadHistoryError
         with self.assertRaises(DownloadHistoryError):
