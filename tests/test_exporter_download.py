@@ -1,4 +1,5 @@
 """Unit tests for the SynologyOfficeExporter download functionality."""
+import json
 import unittest
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
@@ -428,6 +429,76 @@ class TestSynologyOfficeExporter(unittest.TestCase):
         # Verify that download was attempted despite being in history
         mock_synd.download_synology_office_file.assert_called_once_with('123')
         mock_save.assert_called_once()
+
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('json.load')
+    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists):
+        """Test that an error is raised when the download history file is corrupt."""
+        mock_exists.return_value = True
+        # Simulate an error caused by invalid JSON
+        mock_json_load.side_effect = json.JSONDecodeError("Invalid JSON", "", 0)
+
+        from synology_office_exporter.exception import DownloadHistoryError
+        with self.assertRaises(DownloadHistoryError):
+            SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
+
+        # Verify that the history file was attempted to be opened
+        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
+        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
+        mock_json_load.assert_called_once()
+
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('json.load')
+    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists):
+        """Test that an error is raised when the download history file has an incorrect magic number."""
+        mock_exists.return_value = True
+        # Simulate history data with an invalid magic number
+        mock_json_load.return_value = {
+            '_meta': {
+                'version': 1,
+                'magic': 'INCORRECT_MAGIC',  # Incorrect magic number
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
+            },
+            'files': {}
+        }
+
+        from synology_office_exporter.exception import DownloadHistoryError
+        with self.assertRaises(DownloadHistoryError):
+            SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
+
+        # Verify that the history file was attempted to be opened
+        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
+        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
+        mock_json_load.assert_called_once()
+
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('json.load')
+    def test_load_download_history_too_new_version(self, mock_json_load, mock_open, mock_exists):
+        """Test that an error is raised when the download history file has a version that's too new."""
+        mock_exists.return_value = True
+        # Simulate history data with a newer version
+        mock_json_load.return_value = {
+            '_meta': {
+                'version': 999,  # Very new version
+                'magic': 'SYNOLOGY_OFFICE_EXPORTER',
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
+            },
+            'files': {}
+        }
+
+        from synology_office_exporter.exception import DownloadHistoryError
+        with self.assertRaises(DownloadHistoryError):
+            SynologyOfficeExporter(MagicMock(), output_dir='/test/dir')
+
+        # Verify that the history file was attempted to be opened
+        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
+        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
+        mock_json_load.assert_called_once()
 
 
 if __name__ == '__main__':

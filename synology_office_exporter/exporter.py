@@ -141,8 +141,12 @@ class SynologyOfficeExporter:
             self.download_history = {}
             return
 
-        with open(self.download_history_file, 'r') as f:
-            history_data = json.load(f)
+        try:
+            with open(self.download_history_file, 'r') as f:
+                history_data = json.load(f)
+        except Exception as e:
+            logging.error(f"Error loading download history: {e}")
+            raise DownloadHistoryError(f"Error loading download history file: {e}")
 
         # Check if the history file has version information
         if isinstance(history_data, dict) and '_meta' in history_data:
