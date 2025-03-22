@@ -209,7 +209,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
     def test_exception_during_file_deletion_stops_further_deletions(self, mock_remove, mock_path_exists):
         mock_path_exists.return_value = True
 
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir, skip_history=True)
         exporter.download_history = self.sample_history.copy()
 
         # Mark both files as deleted
@@ -229,7 +229,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
     def test_file_deletion_in_context_manager(self, mock_remove, mock_path_exists):
         mock_path_exists.return_value = True
 
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir, skip_history=True)
         exporter.download_history = self.sample_history.copy()
 
         # Mark document.docx as deleted (not in current_file_paths)
