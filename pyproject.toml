@@ -8,7 +8,8 @@ dynamic = ["version"]
 description = "Tools for exporting Synology Office files from Synology NAS devices"
 readme = "README.md"
 authors = [{ name = "Issei Suzuki" }]
-license = { text = "MIT" }
+license-files = ["LICENSE"]
+keywords = ["synology", "office", "exporter"]
 classifiers = [
     "Programming Language :: Python :: 3.6",
     "Operating System :: OS Independent",
