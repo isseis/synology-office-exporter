@@ -301,10 +301,11 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(exporter.download_history['path/to/new.osheet']['file_id'], '456')
         self.assertEqual(exporter.download_history['path/to/new.osheet']['hash'], 'new-file-hash')
 
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
     @patch('json.load')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('os.path.exists')
-    def test_load_download_history(self, mock_exists, mock_open, mock_json_load):
+    def test_load_download_history(self, mock_exists, mock_open, mock_json_load, mock_lock):
         """Test that download history is correctly loaded from file."""
         mock_exists.return_value = True
         mock_json_load.return_value = {
@@ -320,16 +321,15 @@ class TestDownload(unittest.TestCase):
             }
         }
 
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir')
+        with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir') as exporter:
+            # _load_download_history is called in __init__, verify it worked
+            mock_exists.assert_called_once_with('/test/dir/.download_history.json')
+            mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
+            mock_json_load.assert_called_once()
 
-        # _load_download_history is called in __init__, verify it worked
-        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
-        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
-        mock_json_load.assert_called_once()
-
-        # Verify history was loaded correctly - files should be in download_history
-        self.assertEqual(len(exporter.download_history), 2)
-        self.assertEqual(exporter.download_history['test.osheet']['hash'], 'abc123')
+            # Verify history was loaded correctly - files should be in download_history
+            self.assertEqual(len(exporter.download_history), 2)
+            self.assertEqual(exporter.download_history['test.osheet']['hash'], 'abc123')
 
     @patch('json.dump')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
@@ -357,22 +357,27 @@ class TestDownload(unittest.TestCase):
         self.assertEqual(actual_data['_meta']['version'], 1)
         self.assertEqual(actual_data['_meta']['program'], 'synology-office-exporter')
 
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._unlock_download_history')
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._save_download_history')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._load_download_history')
-    def test_context_manager(self, mock_load, mock_save, mock_process):
+    def test_context_manager(self, mock_load, mock_save, mock_process, mock_lock, mock_unlock):
         """Test that context manager loads and saves download history."""
         with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir') as exporter:
             # In the context, _load_download_history should have been called already
             mock_load.assert_called_once()
             mock_save.assert_not_called()  # Not called yet
+            mock_lock.assert_called_once()
+            mock_unlock.assert_not_called()
 
-            # Do something with the exporter
-            exporter.download_mydrive_files()
+        # Do something with the exporter
+        exporter.download_mydrive_files()
 
         # After the context, _save_download_history should have been called
         mock_save.assert_called_once()
         mock_process.assert_called_once()
+        mock_unlock.assert_called_once()
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_force_download_ignores_history(self, mock_save):
@@ -397,10 +402,11 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.assert_called_once_with('123')
         mock_save.assert_called_once()
 
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
-    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists):
+    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists, mock_lock):
         """Test that an error is raised when the download history file is corrupt."""
         mock_exists.return_value = True
         # Simulate an error caused by invalid JSON
@@ -408,17 +414,19 @@ class TestDownload(unittest.TestCase):
 
         from synology_office_exporter.exception import DownloadHistoryError
         with self.assertRaises(DownloadHistoryError):
-            SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir')
+            with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir'):
+                self.assertTrue(False)  # Should not reach here
 
         # Verify that the history file was attempted to be opened
         mock_exists.assert_called_once_with('/test/dir/.download_history.json')
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
         mock_json_load.assert_called_once()
 
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
-    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists):
+    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists, mock_lock):
         """Test that an error is raised when the download history file has an incorrect magic number."""
         mock_exists.return_value = True
         # Simulate history data with an invalid magic number
@@ -434,17 +442,19 @@ class TestDownload(unittest.TestCase):
 
         from synology_office_exporter.exception import DownloadHistoryError
         with self.assertRaises(DownloadHistoryError):
-            SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir')
+            with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir'):
+                self.assertTrue(False)  # Should not reach here
 
         # Verify that the history file was attempted to be opened
         mock_exists.assert_called_once_with('/test/dir/.download_history.json')
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
         mock_json_load.assert_called_once()
 
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
-    def test_load_download_history_too_new_version(self, mock_json_load, mock_open, mock_exists):
+    def test_load_download_history_too_new_version(self, mock_json_load, mock_open, mock_exists, mock_lock):
         """Test that an error is raised when the download history file has a version that's too new."""
         mock_exists.return_value = True
         # Simulate history data with a newer version
@@ -460,7 +470,8 @@ class TestDownload(unittest.TestCase):
 
         from synology_office_exporter.exception import DownloadHistoryError
         with self.assertRaises(DownloadHistoryError):
-            SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir')
+            with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir'):
+                self.assertTrue(False)  # Should not reach here
 
         # Verify that the history file was attempted to be opened
         mock_exists.assert_called_once_with('/test/dir/.download_history.json')

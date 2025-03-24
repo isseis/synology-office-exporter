@@ -20,6 +20,7 @@ Requirements:
 See main.py for command line usage instructions.
 """
 
+from filelock import FileLock, Timeout
 from io import BytesIO, StringIO
 import logging
 import os
@@ -62,6 +63,7 @@ class SynologyOfficeExporter:
     - Supports context manager protocol for proper resource management
     - Handles encrypted files and various error conditions gracefully
     - Removes MS Office files when the source Synology Office files are deleted
+    - Uses file locking mechanism to prevent multiple processes from running simultaneously
 
     Usage example:
         with SynologyOfficeExporter(synd_client, output_dir='./exports') as exporter:
@@ -82,6 +84,8 @@ class SynologyOfficeExporter:
             stat_buf: StringIO buffer to write statistics output
             skip_history: If True, download history will not be loaded or saved (for testing)
         """
+        self.lock = None
+        self.lock_file_path = os.path.join(output_dir, '.download_history.lock')
         self.synd = synd
         self.output_dir = output_dir
         self.download_history_file = os.path.join(output_dir, '.download_history.json')
@@ -89,7 +93,6 @@ class SynologyOfficeExporter:
         self.force_download = force_download
         self.skip_history = skip_history
         self.stat_buf = stat_buf
-        self._load_download_history()
 
         # Counters for tracking statistics
         self.total_found_files = 0
@@ -110,6 +113,8 @@ class SynologyOfficeExporter:
         Returns:
             SynologyOfficeExporter: The instance itself for use in with statements.
         """
+        self._lock_download_history()
+        self._load_download_history()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -129,14 +134,45 @@ class SynologyOfficeExporter:
             self.had_exceptions = True
             logging.warning('Exception occurred during processing, skipping file deletion')
 
-        # Only remove deleted files if no exceptions occurred
-        if not self.had_exceptions:
-            self._remove_deleted_files()
-        else:
-            logging.info('Skipping file deletion due to exceptions during processing')
+        try:
+            # Only remove deleted files if no exceptions occurred
+            if not self.had_exceptions:
+                self._remove_deleted_files()
+            else:
+                logging.info('Skipping file deletion due to exceptions during processing')
 
-        self._save_download_history()
+            self._save_download_history()
+        except Exception:
+            raise
+        finally:
+            self._unlock_download_history()
+
         self._dump_summary()
+
+    def _lock_download_history(self):
+        """
+        Acquire a lock on the download history file.
+
+        This method is used to prevent multiple instances of the exporter from running
+        simultaneously and potentially corrupting the download history file.
+        """
+        try:
+            if not self.skip_history:
+                self.lock = FileLock(self.lock_file_path)
+                self.lock.acquire(blocking=False)
+        except Timeout:
+            logging.error('Download history lock file already exists. Another process may be running.')
+            raise DownloadHistoryError('Download history lock file already exists. Another process may be running.')
+
+    def _unlock_download_history(self):
+        """
+        Release the lock on the download history file.
+
+        This method should be called when the exporter is done
+        with the download history file to allow other processes to access it.
+        """
+        if self.lock:
+            self.lock.release()
 
     def _load_download_history(self):
         """Load the download history from a JSON file."""

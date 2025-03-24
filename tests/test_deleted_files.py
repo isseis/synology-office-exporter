@@ -10,7 +10,7 @@ from io import BytesIO
 from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
 
 
-class TestOfficeFileRemoval(unittest.TestCase):
+class TestDeletedFiles(unittest.TestCase):
     """Test suite for verifying proper cleanup of exported files when original Synology Office files are deleted."""
 
     def setUp(self):
@@ -35,10 +35,11 @@ class TestOfficeFileRemoval(unittest.TestCase):
             }
         }
 
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=mock_open)
     @patch('json.load')
-    def test_load_download_history(self, mock_json_load, mock_file_open, mock_path_exists):
+    def test_load_download_history(self, mock_json_load, mock_file_open, mock_path_exists, mock_lock):
         """Test that download history is loaded correctly."""
         mock_path_exists.return_value = True
         mock_json_load.return_value = {
@@ -51,11 +52,10 @@ class TestOfficeFileRemoval(unittest.TestCase):
             'files': self.sample_history
         }
 
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-
-        # Verify file was opened and history was loaded
-        mock_file_open.assert_called_once_with(self.history_file, 'r')
-        self.assertEqual(exporter.download_history, self.sample_history)
+        with SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir) as exporter:
+            # Verify file was opened and history was loaded
+            mock_file_open.assert_called_once_with(self.history_file, 'r')
+            self.assertEqual(exporter.download_history, self.sample_history)
 
     @patch('os.path.exists')
     @patch('os.remove')
@@ -146,7 +146,7 @@ class TestOfficeFileRemoval(unittest.TestCase):
                 'created': '2023-01-01 12:00:00',
                 'program': 'synology-office-exporter'
             }
-            with SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir) as exporter:
+            with SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir, skip_history=True) as exporter:
                 # Set partial history (as if spreadsheet.osheet has been deleted)
                 exporter.download_history = {
                     '/path/to/document.odoc': self.sample_history['/path/to/document.odoc']
