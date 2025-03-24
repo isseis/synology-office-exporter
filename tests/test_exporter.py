@@ -10,7 +10,7 @@ import os
 from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
 
 
-class TestSynologyOfficeExporter(unittest.TestCase):
+class TestExporter(unittest.TestCase):
     """Test suite for the SynologyOfficeExporter class."""
 
     def setUp(self):

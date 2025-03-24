@@ -16,8 +16,9 @@ classifiers = [
 ]
 requires-python = ">=3.6"
 dependencies = [
-    "synology-drive-api>=1.0.15",
+    "filelock>=3.18.0",
     "python-dotenv>=0.19.0",
+    "synology-drive-api>=1.0.15",
     # urllib3 v2.0 only supports OpenSSL 1.1.1+, which is not yet default on Mac OS.
     "urllib3<2.0.0",
 ]
