@@ -19,22 +19,22 @@ class TestExporter(unittest.TestCase):
         self.mock_synd = MagicMock()
         self.output_dir = '/tmp/synology_office_exports'
 
-    def test_get_offline_name(self):
+    def test_convert_synology_to_ms_office_filename(self):
         """Test conversion of Synology Office filenames to MS Office filenames."""
         self.assertEqual(
-            SynologyOfficeExporter.get_offline_name('document.odoc'),
+            SynologyOfficeExporter.convert_synology_to_ms_office_filename('document.odoc'),
             'document.docx'
         )
         self.assertEqual(
-            SynologyOfficeExporter.get_offline_name('spreadsheet.osheet'),
+            SynologyOfficeExporter.convert_synology_to_ms_office_filename('spreadsheet.osheet'),
             'spreadsheet.xlsx'
         )
         self.assertEqual(
-            SynologyOfficeExporter.get_offline_name('presentation.oslides'),
+            SynologyOfficeExporter.convert_synology_to_ms_office_filename('presentation.oslides'),
             'presentation.pptx'
         )
         self.assertIsNone(
-            SynologyOfficeExporter.get_offline_name('not_office_file.txt')
+            SynologyOfficeExporter.convert_synology_to_ms_office_filename('not_office_file.txt')
         )
 
     @patch('os.makedirs')
@@ -63,8 +63,8 @@ class TestExporter(unittest.TestCase):
     def test_save_download_history(self, mock_json_dump, mock_file_open):
         """Test that download history is saved correctly."""
         with patch.object(SynologyOfficeExporter, '_load_download_history'):
-            with patch.object(SynologyOfficeExporter, '_get_metadata') as mock_get_metadata:
-                mock_get_metadata.return_value = {
+            with patch.object(SynologyOfficeExporter, '_build_metadata') as mock_build_metadata:
+                mock_build_metadata.return_value = {
                     'version': 1,
                     'magic': HISTORY_MAGIC,
                     'created': '2025-03-22 14:43:44.966404',
@@ -93,7 +93,7 @@ class TestExporter(unittest.TestCase):
                 # Verify history was dumped
                 mock_json_dump.assert_called_once_with(
                     {
-                        '_meta': mock_get_metadata.return_value,
+                        '_meta': mock_build_metadata.return_value,
                         'files': sample_history
                     },
                     mock_file_open())

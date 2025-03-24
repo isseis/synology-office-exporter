@@ -47,13 +47,13 @@ class TestDownload(unittest.TestCase):
         # Check if download_synology_office_file was called correctly
         self.mock_synd.download_synology_office_file.assert_called_once_with('123')
 
-    def test_get_offline_name(self):
+    def test_convert_synology_to_ms_office_filename(self):
         # For Synology Office files, convert to MS Office extensions
-        self.assertEqual(SynologyOfficeExporter.get_offline_name('test.osheet'), 'test.xlsx')
-        self.assertEqual(SynologyOfficeExporter.get_offline_name('test.odoc'), 'test.docx')
-        self.assertEqual(SynologyOfficeExporter.get_offline_name('test.oslides'), 'test.pptx')
+        self.assertEqual(SynologyOfficeExporter.convert_synology_to_ms_office_filename('test.osheet'), 'test.xlsx')
+        self.assertEqual(SynologyOfficeExporter.convert_synology_to_ms_office_filename('test.odoc'), 'test.docx')
+        self.assertEqual(SynologyOfficeExporter.convert_synology_to_ms_office_filename('test.oslides'), 'test.pptx')
         # For other files, return None
-        self.assertIsNone(SynologyOfficeExporter.get_offline_name('test.txt'))
+        self.assertIsNone(SynologyOfficeExporter.convert_synology_to_ms_office_filename('test.txt'))
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_item')
     def test_download_shared_files(self, mock_process_item):

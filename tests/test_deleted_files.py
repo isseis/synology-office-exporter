@@ -139,8 +139,8 @@ class TestDeletedFiles(unittest.TestCase):
         """Test that updated history (after removal) is saved correctly."""
         mock_path_exists.return_value = True
         with patch.object(SynologyOfficeExporter, '_load_download_history'), \
-                patch.object(SynologyOfficeExporter, '_get_metadata') as mock_get_metadata:
-            mock_get_metadata.return_value = {
+                patch.object(SynologyOfficeExporter, '_build_metadata') as mock_build_metadata:
+            mock_build_metadata.return_value = {
                 'version': 1,
                 'magic': HISTORY_MAGIC,
                 'created': '2023-01-01 12:00:00',
@@ -157,7 +157,7 @@ class TestDeletedFiles(unittest.TestCase):
             saved_data = mock_json_dump.call_args[0][0]
             self.assertEqual(saved_data,
                              {
-                                 '_meta': mock_get_metadata.return_value,
+                                 '_meta': mock_build_metadata.return_value,
                                  'files': exporter.download_history
                              })
             self.assertIn('/path/to/document.odoc', saved_data['files'])

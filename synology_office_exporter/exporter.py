@@ -10,14 +10,15 @@ File conversions performed:
 - Synology Document (.odoc) -> Microsoft Word (.docx)
 - Synology Slides (.oslides) -> Microsoft PowerPoint (.pptx)
 
-This is a library module. For command-line usage, please use main.py.
+This is a library module. For command-line usage, please use cli.py.
 
 Requirements:
 - Python 3.6+
-- synology-drive-ex package
-- python-dotenv package (for main.py)
+- synology-drive package
+- filelock package
+- python-dotenv package (for cli.py)
 
-See main.py for command line usage instructions.
+See cli.py for command line usage instructions.
 """
 
 from filelock import FileLock, Timeout
@@ -32,14 +33,6 @@ from datetime import datetime
 from synology_office_exporter.exception import DownloadHistoryError
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
-# Mapping of log level strings to actual log levels
-LOG_LEVELS = {
-    'debug': logging.DEBUG,
-    'info': logging.INFO,
-    'warning': logging.WARNING,
-    'error': logging.ERROR,
-    'critical': logging.CRITICAL
-}
 
 # Constants for the download history file
 HISTORY_VERSION = 1
@@ -50,7 +43,7 @@ class SynologyOfficeExporter:
     """
     A tool for exporting and converting Synology Office documents to Microsoft Office formats.
 
-    This class provides the ability to traverse a Synology NAS, identif3y Synology Office
+    This class provides the ability to traverse a Synology NAS, identify Synology Office
     documents (odoc, osheet, oslides), and convert them to their Microsoft Office
     counterparts (docx, xlsx, pptx). It handles personal files from My Drive,
     team folder documents, and files shared with the user.
@@ -59,7 +52,7 @@ class SynologyOfficeExporter:
     - Maintains a download history to avoid re-downloading unchanged files
     - Preserves folder structure when exporting files
     - Provides detailed logging of operations
-    - Tracks statistics about found, skipped, and downloaded files
+    - Tracks statistics about found, skipped, downloaded, and deleted files
     - Supports context manager protocol for proper resource management
     - Handles encrypted files and various error conditions gracefully
     - Removes MS Office files when the source Synology Office files are deleted
@@ -110,6 +103,8 @@ class SynologyOfficeExporter:
         """
         Context manager entry method.
 
+        Locks the download history file and loads existing history data.
+
         Returns:
             SynologyOfficeExporter: The instance itself for use in with statements.
         """
@@ -121,7 +116,7 @@ class SynologyOfficeExporter:
         """
         Context manager exit method that saves history and removes deleted files.
 
-        Saves the download history when exiting the context.
+        Saves the download history and unlocks the download history file when exiting the context.
         Removes files that have been deleted from the NAS only if no exceptions occurred.
 
         Args:
@@ -155,6 +150,10 @@ class SynologyOfficeExporter:
 
         This method is used to prevent multiple instances of the exporter from running
         simultaneously and potentially corrupting the download history file.
+
+        Raises:
+            DownloadHistoryError: If the lock cannot be acquired, indicating another process
+                                 is already running.
         """
         try:
             if not self.skip_history:
@@ -168,14 +167,23 @@ class SynologyOfficeExporter:
         """
         Release the lock on the download history file.
 
-        This method should be called when the exporter is done
-        with the download history file to allow other processes to access it.
+        This method should be called when the exporter is done with the download history file
+        to allow other processes to access it.
         """
         if self.lock:
             self.lock.release()
 
     def _load_download_history(self):
-        """Load the download history from a JSON file."""
+        """
+        Load the download history from a JSON file.
+
+        The history file contains metadata and a record of previously downloaded files
+        with their hashes to determine if they've changed.
+
+        Raises:
+            DownloadHistoryError: If the history file exists but is corrupted or has an
+                                 incompatible format.
+        """
         if self.skip_history or not os.path.exists(self.download_history_file):
             self.download_history = {}
             return
@@ -206,7 +214,13 @@ class SynologyOfficeExporter:
             self.download_history = history_data.get('files', {})
 
     @staticmethod
-    def _get_metadata():
+    def _build_metadata():
+        """
+        Generate metadata for the download history file.
+
+        Returns:
+            dict: A dictionary containing version, magic number, creation time, and program name.
+        """
         return {
             'version': HISTORY_VERSION,
             'magic': HISTORY_MAGIC,
@@ -215,13 +229,18 @@ class SynologyOfficeExporter:
         }
 
     def _save_download_history(self):
-        """Save the download history to a JSON file."""
+        """
+        Save the download history to a JSON file.
+
+        This method stores the current download history along with metadata
+        to track which files have been downloaded and their respective hashes.
+        """
         try:
             os.makedirs(os.path.dirname(self.download_history_file), exist_ok=True)
 
             # Create history data with metadata
             history_data = {
-                '_meta': self._get_metadata(),
+                '_meta': self._build_metadata(),
                 'files': self.download_history
             }
 
@@ -237,12 +256,13 @@ class SynologyOfficeExporter:
 
         This method identifies files that exist in the download history but not in the current
         file list, deletes those files from the local filesystem, and updates the download history.
+        The method will set had_exceptions flag if errors occur during deletion.
         """
         logging.info('Removing deleted files...')
         deleted_file_paths = set(self.download_history.keys()) - self.current_file_paths
         for file_path in deleted_file_paths:
             try:
-                offline_name = self.get_offline_name(file_path)
+                offline_name = self.convert_synology_to_ms_office_filename(file_path)
                 if offline_name is None:
                     logging.error(f'Cannot determine offline name for {file_path}')
                     continue
@@ -273,7 +293,7 @@ class SynologyOfficeExporter:
         identifying and converting all compatible Synology Office documents.
 
         Exceptions during processing are caught and logged, allowing the process
-        to continue with other files.
+        to continue with other files. The had_exceptions flag is set if errors occur.
         """
         logging.info('Downloading My Drive files...')
         try:
@@ -290,7 +310,7 @@ class SynologyOfficeExporter:
         from files and folders that have been shared with the current user.
 
         Exceptions during processing are caught and logged, allowing the process
-        to continue with other files.
+        to continue with other files. The had_exceptions flag is set if errors occur.
         """
         logging.info('Downloading shared files...')
         try:
@@ -312,7 +332,7 @@ class SynologyOfficeExporter:
         identifying and converting all compatible Synology Office documents.
 
         Exceptions during processing are caught and logged, allowing the process
-        to continue with other files and folders.
+        to continue with other files and folders. The had_exceptions flag is set if errors occur.
         """
         logging.info('Downloading team folder files...')
         try:
@@ -327,6 +347,18 @@ class SynologyOfficeExporter:
             self.had_exceptions = True
 
     def _process_item(self, item):
+        """
+        Process a single item (file or directory) from the Synology NAS.
+
+        This method handles both directories and documents, skipping encrypted files.
+        For directories, it recursively processes all contained items.
+        For documents, it passes them to the appropriate document processor.
+
+        Args:
+            item: Dictionary containing item information from the Synology API
+
+        The had_exceptions flag is set if errors occur during processing.
+        """
         try:
             file_id = item['file_id']
             display_path = item.get('display_path', item.get('name'))
@@ -345,6 +377,18 @@ class SynologyOfficeExporter:
             self.had_exceptions = True
 
     def _process_directory(self, file_id: str, dir_name: str):
+        """
+        Process a directory and all its contents from the Synology NAS.
+
+        This method lists all items in the specified directory and processes
+        each one by calling _process_item.
+
+        Args:
+            file_id: The ID of the directory to process
+            dir_name: The display name of the directory for logging purposes
+
+        The had_exceptions flag is set if errors occur during processing.
+        """
         logging.debug(f'Processing directory: {dir_name}')
 
         try:
@@ -364,14 +408,21 @@ class SynologyOfficeExporter:
         """
         Process and download a Synology Office document.
 
+        This method checks if the document should be downloaded (based on history and force flag),
+        downloads it if needed, converts it to the corresponding Microsoft Office format,
+        and updates the download history.
+
         Args:
             file_id: The ID of the file to download
             display_path: The display path of the file
             hash: The hash of the file to track changes
+
+        The had_exceptions flag is set if errors occur during processing.
+        The current_file_paths set is updated to track which files exist on the NAS.
         """
         logging.debug(f'Processing {display_path}')
         try:
-            offline_name = self.get_offline_name(display_path)
+            offline_name = self.convert_synology_to_ms_office_filename(display_path)
             if not offline_name:
                 logging.debug(f'Skipping non-Synology Office file: {display_path}')
                 return
@@ -409,7 +460,7 @@ class SynologyOfficeExporter:
             self.had_exceptions = True
 
     @staticmethod
-    def get_offline_name(name: str) -> Optional[str]:
+    def convert_synology_to_ms_office_filename(name: str) -> Optional[str]:
         """
         Converts Synology Office file names to Microsoft Office file names.
 
@@ -418,8 +469,8 @@ class SynologyOfficeExporter:
         - odoc -> docx (Word)
         - oslides -> pptx (PowerPoint)
 
-        Parameters:
-            name (str): The file name to convert
+        Args:
+            name: The file name to convert
 
         Returns:
             str or None: The file name with corresponding Microsoft Office extension.
@@ -455,6 +506,9 @@ class SynologyOfficeExporter:
     def _dump_summary(self):
         """
         Dump statistics for the execution results.
+
+        This method writes a summary of the operation to the stat_buf if one was provided,
+        including counts of found, skipped, downloaded, and deleted files.
         """
         if self.stat_buf is not None:
             self.stat_buf.write('\n===== Download Results Summary =====\n\n')
