@@ -4,23 +4,29 @@ This guide is for developers who want to contribute to the Synology Office Expor
 
 ## Development Environment Setup
 
-### Create Virtual Environment
-
-It's recommended to create a Python virtual environment and run the tools inside it.
-
-For bash / zsh users:
-```bash
-python -m venv .venv
-. .venv/bin/activate
-pip install --upgrade pip
-```
-
 ### Clone the Repository
 
 ```bash
 git clone https://github.com/isseis/synology-office-exporter.git
 cd synology-office-exporter
 ```
+
+### Create Virtual Environment
+
+It's recommended to create a Python virtual environment to isolate your development dependencies.
+
+For bash / zsh users:
+```bash
+# This command only needs to be run once to create the virtual environment
+python -m venv .venv
+
+# This command must be run each time you open a new terminal session for development
+source .venv/bin/activate
+```
+
+This creates a virtual environment in the `.venv` directory (one-time setup) and activates it (required each time you start a new development session), ensuring all Python packages are installed locally without affecting your global Python installation.
+
+You should also consider using [direnv](https://direnv.net/) to run `. .venv/bin/activivate` when you enter the directory and reset the environment variables when you move out of the directory automatically.
 
 ### Install Development Packages
 
@@ -184,6 +190,24 @@ You can install the locally built package for testing:
 pip install dist/*.whl
 ```
 
+#### Deploying to PyPI (Test)
+
+For testing the deployment process, you can use the PyPI test environment:
+
+```bash
+python -m twine upload --repository testpypi dist/*
+```
+
+The package will be available at: https://test.pypi.org/project/synology-office-exporter/
+
+#### Deploying to PyPI (Production)
+
+Once you've verified the package works correctly on TestPyPI, you can deploy to the main PyPI repository:
+
+```bash
+python -m twine upload dist/*
+```
+
 ## File Formats
 
 ### Download History File
@@ -226,21 +250,3 @@ Where:
     - `download_time`: ISO 8601 formatted timestamp when the file was last downloaded
 
 The download history is used to implement the incremental download feature, which only downloads files that have been created or modified since the last run.
-
-#### Deploying to PyPI (Test)
-
-For testing the deployment process, you can use the PyPI test environment:
-
-```bash
-python -m twine upload --repository testpypi dist/*
-```
-
-The package will be available at: https://test.pypi.org/project/synology-office-exporter/
-
-#### Deploying to PyPI (Production)
-
-Once you've verified the package works correctly on TestPyPI, you can deploy to the main PyPI repository:
-
-```bash
-python -m twine upload dist/*
-```
