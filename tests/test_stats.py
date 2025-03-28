@@ -65,7 +65,8 @@ class TestStats(unittest.TestCase):
         file_hash = 'test_hash'
 
         # Add file to download history
-        self.exporter.download_history = {
+        # TODO: Rewrite this to use the download_history property.
+        self.exporter.history_storage.download_history = {
             display_path: {
                 'file_id': file_id,
                 'hash': file_hash,

@@ -26,7 +26,7 @@ from io import BytesIO, StringIO
 import logging
 import os
 import sys
-from typing import Optional
+from typing import Optional, Dict, Any, Set
 import json
 from datetime import datetime
 
@@ -37,6 +37,199 @@ from synology_office_exporter.synology_drive_api import SynologyDriveEx
 # Constants for the download history file
 HISTORY_VERSION = 1
 HISTORY_MAGIC = 'SYNOLOGY_OFFICE_EXPORTER'
+
+
+class DownloadHistoryFile:
+    """
+    Manages the download history file and locking mechanism.
+
+    This class encapsulates all operations related to the download history,
+    including file locking, loading, and saving history data. It provides a clean
+    interface for the SynologyOfficeExporter to interact with the history data
+    without being concerned with the implementation details.
+
+    Attributes:
+        skip_history (bool): If True, download history operations are skipped
+        output_dir (str): Directory where the history file is stored
+        download_history (dict): The current download history data
+        force_download (bool): If True, force download regardless of history
+    """
+
+    def __init__(self, output_dir: str = '.', force_download: bool = False, skip_history: bool = False):
+        """
+        Initialize the DownloadHistoryFile.
+
+        Args:
+            output_dir: Directory where the history file will be stored
+            force_download: If True, ignore existing history when checking if files need to be downloaded
+            skip_history: If True, skip all history operations (for testing)
+        """
+        self.lock = None
+        self.lock_file_path = os.path.join(output_dir, '.download_history.lock')
+        self.download_history_file = os.path.join(output_dir, '.download_history.json')
+        self.download_history: Dict[str, Any] = {}
+        self.force_download = force_download
+        self.skip_history = skip_history
+        self.output_dir = output_dir
+
+    def lock_history(self):
+        """
+        Acquire a lock on the download history file.
+
+        Raises:
+            DownloadHistoryError: If the lock cannot be acquired, indicating another process
+                                is already running.
+        """
+        try:
+            if not self.skip_history:
+                self.lock = FileLock(self.lock_file_path)
+                self.lock.acquire(blocking=False)
+        except Timeout:
+            logging.error('Download history lock file already exists. Another process may be running.')
+            raise DownloadHistoryError('Download history lock file already exists. Another process may be running.')
+
+    def unlock_history(self):
+        """
+        Release the lock on the download history file.
+        """
+        if self.lock:
+            self.lock.release()
+
+    def load_history(self):
+        """
+        Load the download history from a JSON file.
+
+        Raises:
+            DownloadHistoryError: If the history file exists but is corrupted or has an
+                                incompatible format.
+        """
+        if self.skip_history or not os.path.exists(self.download_history_file):
+            self.download_history = {}
+            return
+
+        try:
+            with open(self.download_history_file, 'r') as f:
+                history_data = json.load(f)
+        except Exception as e:
+            logging.error(f'Error loading download history: {e}')
+            raise DownloadHistoryError(f'Error loading download history file: {e}')
+
+        # Check if the history file has version information
+        if isinstance(history_data, dict) and '_meta' in history_data:
+            meta = history_data['_meta']
+
+            # Verify magic number
+            if meta.get('magic') != HISTORY_MAGIC:
+                raise DownloadHistoryError(
+                    f'History file has incorrect magic number. Expected {HISTORY_MAGIC}, got {meta.get("magic")}')
+
+            # Check version compatibility
+            version = meta.get('version', 0)
+            if version > HISTORY_VERSION:
+                raise DownloadHistoryError(
+                    f'History file version {version} is newer than current version {HISTORY_VERSION}. ')
+
+            # Extract the actual file history
+            self.download_history = history_data.get('files', {})
+
+    def save_history(self):
+        """
+        Save the download history to a JSON file.
+        """
+        if self.skip_history:
+            return
+
+        try:
+            os.makedirs(os.path.dirname(self.download_history_file), exist_ok=True)
+
+            # Create history data with metadata
+            history_data = {
+                '_meta': self._build_metadata(),
+                'files': self.download_history
+            }
+
+            with open(self.download_history_file, 'w') as f:
+                json.dump(history_data, f)
+            logging.info(f'Saved download history for {len(self.download_history)} files')
+        except Exception as e:
+            logging.error(f'Error saving download history: {e}')
+
+    @staticmethod
+    def _build_metadata():
+        """
+        Generate metadata for the download history file.
+
+        Returns:
+            dict: A dictionary containing version, magic number, creation time, and program name.
+        """
+        return {
+            'version': HISTORY_VERSION,
+            'magic': HISTORY_MAGIC,
+            'created': str(datetime.now()),
+            'program': 'synology-office-exporter'
+        }
+
+    def get_history(self) -> Dict[str, Any]:
+        """
+        Get the current download history.
+
+        Returns:
+            dict: The current download history
+        """
+        return self.download_history
+
+    def get_history_keys(self) -> Set[str]:
+        """
+        Get the set of keys (file paths) in the download history.
+
+        Returns:
+            set: Set of file paths in the history
+        """
+        return set(self.download_history.keys())
+
+    def add_history_entry(self, file_path: str, file_id: str, hash_value: str):
+        """
+        Add or update an entry in the download history.
+
+        Args:
+            file_path: The path of the file
+            file_id: The ID of the file
+            hash_value: The hash value of the file
+        """
+        self.download_history[file_path] = {
+            'file_id': file_id,
+            'hash': hash_value,
+            'download_time': str(datetime.now())
+        }
+
+    def remove_history_entry(self, file_path: str):
+        """
+        Remove an entry from the download history.
+
+        Args:
+            file_path: The path of the file to remove
+        """
+        if file_path in self.download_history:
+            del self.download_history[file_path]
+
+    def should_download(self, file_path: str, hash_value: str) -> bool:
+        """
+        Determine if a file should be downloaded based on history and force flag.
+
+        Args:
+            file_path: The path of the file
+            hash_value: The current hash value of the file
+
+        Returns:
+            bool: True if the file should be downloaded, False otherwise
+        """
+        if self.force_download:
+            return True
+
+        if file_path not in self.download_history:
+            return True
+
+        return self.download_history[file_path]['hash'] != hash_value
 
 
 class SynologyOfficeExporter:
@@ -77,15 +270,16 @@ class SynologyOfficeExporter:
             stat_buf: StringIO buffer to write statistics output
             skip_history: If True, download history will not be loaded or saved (for testing)
         """
-        self.lock = None
-        self.lock_file_path = os.path.join(output_dir, '.download_history.lock')
         self.synd = synd
         self.output_dir = output_dir
-        self.download_history_file = os.path.join(output_dir, '.download_history.json')
-        self.download_history = {}
-        self.force_download = force_download
-        self.skip_history = skip_history
         self.stat_buf = stat_buf
+
+        # Initialize history storage
+        self.history_storage = DownloadHistoryFile(
+            output_dir=output_dir,
+            force_download=force_download,
+            skip_history=skip_history
+        )
 
         # Counters for tracking statistics
         self.total_found_files = 0
@@ -108,8 +302,8 @@ class SynologyOfficeExporter:
         Returns:
             SynologyOfficeExporter: The instance itself for use in with statements.
         """
-        self._lock_download_history()
-        self._load_download_history()
+        self.history_storage.lock_history()
+        self.history_storage.load_history()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -136,119 +330,13 @@ class SynologyOfficeExporter:
             else:
                 logging.info('Skipping file deletion due to exceptions during processing')
 
-            self._save_download_history()
+            self.history_storage.save_history()
         except Exception:
             raise
         finally:
-            self._unlock_download_history()
+            self.history_storage.unlock_history()
 
         self._dump_summary()
-
-    def _lock_download_history(self):
-        """
-        Acquire a lock on the download history file.
-
-        This method is used to prevent multiple instances of the exporter from running
-        simultaneously and potentially corrupting the download history file.
-
-        Raises:
-            DownloadHistoryError: If the lock cannot be acquired, indicating another process
-                                 is already running.
-        """
-        try:
-            if not self.skip_history:
-                self.lock = FileLock(self.lock_file_path)
-                self.lock.acquire(blocking=False)
-        except Timeout:
-            logging.error('Download history lock file already exists. Another process may be running.')
-            raise DownloadHistoryError('Download history lock file already exists. Another process may be running.')
-
-    def _unlock_download_history(self):
-        """
-        Release the lock on the download history file.
-
-        This method should be called when the exporter is done with the download history file
-        to allow other processes to access it.
-        """
-        if self.lock:
-            self.lock.release()
-
-    def _load_download_history(self):
-        """
-        Load the download history from a JSON file.
-
-        The history file contains metadata and a record of previously downloaded files
-        with their hashes to determine if they've changed.
-
-        Raises:
-            DownloadHistoryError: If the history file exists but is corrupted or has an
-                                 incompatible format.
-        """
-        if self.skip_history or not os.path.exists(self.download_history_file):
-            self.download_history = {}
-            return
-
-        try:
-            with open(self.download_history_file, 'r') as f:
-                history_data = json.load(f)
-        except Exception as e:
-            logging.error(f'Error loading download history: {e}')
-            raise DownloadHistoryError(f'Error loading download history file: {e}')
-
-        # Check if the history file has version information
-        if isinstance(history_data, dict) and '_meta' in history_data:
-            meta = history_data['_meta']
-
-            # Verify magic number
-            if meta.get('magic') != HISTORY_MAGIC:
-                raise DownloadHistoryError(
-                    f'History file has incorrect magic number. Expected {HISTORY_MAGIC}, got {meta.get("magic")}')
-
-            # Check version compatibility
-            version = meta.get('version', 0)
-            if version > HISTORY_VERSION:
-                raise DownloadHistoryError(
-                    f'History file version {version} is newer than current version {HISTORY_VERSION}. ')
-
-            # Extract the actual file history
-            self.download_history = history_data.get('files', {})
-
-    @staticmethod
-    def _build_metadata():
-        """
-        Generate metadata for the download history file.
-
-        Returns:
-            dict: A dictionary containing version, magic number, creation time, and program name.
-        """
-        return {
-            'version': HISTORY_VERSION,
-            'magic': HISTORY_MAGIC,
-            'created': str(datetime.now()),
-            'program': 'synology-office-exporter'
-        }
-
-    def _save_download_history(self):
-        """
-        Save the download history to a JSON file.
-
-        This method stores the current download history along with metadata
-        to track which files have been downloaded and their respective hashes.
-        """
-        try:
-            os.makedirs(os.path.dirname(self.download_history_file), exist_ok=True)
-
-            # Create history data with metadata
-            history_data = {
-                '_meta': self._build_metadata(),
-                'files': self.download_history
-            }
-
-            with open(self.download_history_file, 'w') as f:
-                json.dump(history_data, f)
-            logging.info(f'Saved download history for {len(self.download_history)} files')
-        except Exception as e:
-            logging.error(f'Error saving download history: {e}')
 
     def _remove_deleted_files(self):
         """
@@ -259,7 +347,7 @@ class SynologyOfficeExporter:
         The method will set had_exceptions flag if errors occur during deletion.
         """
         logging.info('Removing deleted files...')
-        deleted_file_paths = set(self.download_history.keys()) - self.current_file_paths
+        deleted_file_paths = self.history_storage.get_history_keys() - self.current_file_paths
         for file_path in deleted_file_paths:
             try:
                 offline_name = self.convert_synology_to_ms_office_filename(file_path)
@@ -276,7 +364,7 @@ class SynologyOfficeExporter:
                     logging.warning(f'File already removed: {output_path}')
 
                 # Remove from download history
-                del self.download_history[file_path]
+                self.history_storage.remove_history_entry(file_path)
 
             except Exception as e:
                 logging.error(f'Error removing deleted file {file_path}: {e}')
@@ -431,8 +519,7 @@ class SynologyOfficeExporter:
             self.total_found_files += 1
 
             # Check if file is already downloaded and unchanged
-            if not self.force_download and (display_path in self.download_history
-                                            and self.download_history[display_path]['hash'] == hash):
+            if not self.history_storage.should_download(display_path, hash):
                 logging.info(f'Skipping already downloaded file: {display_path}')
                 self.skipped_files += 1
                 return
@@ -450,11 +537,7 @@ class SynologyOfficeExporter:
             self.downloaded_files += 1
 
             # Save download info to history
-            self.download_history[display_path] = {
-                'file_id': file_id,
-                'hash': hash,
-                'download_time': str(datetime.now())
-            }
+            self.history_storage.add_history_entry(display_path, file_id, hash)
         except Exception as e:
             logging.error(f'Error downloading document {display_path}: {e}')
             self.had_exceptions = True

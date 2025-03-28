@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO, StringIO
 import os
 
-from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
+from synology_office_exporter.exporter import HISTORY_MAGIC, DownloadHistoryFile, SynologyOfficeExporter
 
 
 class TestExporter(unittest.TestCase):
@@ -62,8 +62,8 @@ class TestExporter(unittest.TestCase):
     @patch('json.dump')
     def test_save_download_history(self, mock_json_dump, mock_file_open):
         """Test that download history is saved correctly."""
-        with patch.object(SynologyOfficeExporter, '_load_download_history'):
-            with patch.object(SynologyOfficeExporter, '_build_metadata') as mock_build_metadata:
+        with patch.object(DownloadHistoryFile, 'load_history'):
+            with patch.object(DownloadHistoryFile, '_build_metadata') as mock_build_metadata:
                 mock_build_metadata.return_value = {
                     'version': 1,
                     'magic': HISTORY_MAGIC,
@@ -81,10 +81,11 @@ class TestExporter(unittest.TestCase):
                         'download_time': '2023-01-01 12:00:00'
                     }
                 }
-                exporter.download_history = sample_history
+                # TODO: Rewrite this to use the download_history property.
+                exporter.history_storage.download_history = sample_history
 
                 # Trigger save
-                exporter._save_download_history()
+                exporter.history_storage.save_history()
 
                 # Verify file was opened correctly
                 history_file = os.path.join(self.output_dir, '.download_history.json')

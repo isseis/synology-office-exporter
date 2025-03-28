@@ -239,7 +239,8 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
-        exporter.download_history = {
+        # TODO: Rewrite this test to use the download_history property.
+        exporter.history_storage.download_history = {
             'path/to/test.osheet': {
                 'file_id': '123',
                 'hash': 'abc123',
@@ -262,7 +263,8 @@ class TestDownload(unittest.TestCase):
 
         # Create exporter instance and set up download history with old hash
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
-        exporter.download_history = {
+        # TODO: Rewrite this test to use the download_history property.
+        exporter.history_storage.download_history = {
             'path/to/test.osheet': {
                 'file_id': '123',
                 'hash': 'old-hash',
@@ -279,7 +281,7 @@ class TestDownload(unittest.TestCase):
         mock_save.assert_called_once()
 
         # Verify that the history was updated with the new hash
-        self.assertEqual(exporter.download_history['path/to/test.osheet']['hash'], 'new-hash')
+        self.assertEqual(exporter.history_storage.download_history['path/to/test.osheet']['hash'], 'new-hash')
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_download_history_saves_new_files(self, mock_save):
@@ -287,7 +289,8 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'new file data')
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
-        exporter.download_history = {}
+        # TODO: Rewrite this test to use the download_history property.
+        exporter.history_storage.download_history = {}
 
         # Process a new document
         exporter._process_document('456', 'path/to/new.osheet', 'new-file-hash')
@@ -297,11 +300,11 @@ class TestDownload(unittest.TestCase):
         mock_save.assert_called_once()
 
         # Verify that the new file was added to history
-        self.assertIn('path/to/new.osheet', exporter.download_history)
-        self.assertEqual(exporter.download_history['path/to/new.osheet']['file_id'], '456')
-        self.assertEqual(exporter.download_history['path/to/new.osheet']['hash'], 'new-file-hash')
+        self.assertIn('path/to/new.osheet', exporter.history_storage.download_history)
+        self.assertEqual(exporter.history_storage.download_history['path/to/new.osheet']['file_id'], '456')
+        self.assertEqual(exporter.history_storage.download_history['path/to/new.osheet']['hash'], 'new-file-hash')
 
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('json.load')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('os.path.exists')
@@ -328,8 +331,8 @@ class TestDownload(unittest.TestCase):
             mock_json_load.assert_called_once()
 
             # Verify history was loaded correctly - files should be in download_history
-            self.assertEqual(len(exporter.download_history), 2)
-            self.assertEqual(exporter.download_history['test.osheet']['hash'], 'abc123')
+            self.assertEqual(len(exporter.history_storage.download_history), 2)
+            self.assertEqual(exporter.history_storage.download_history['test.osheet']['hash'], 'abc123')
 
     @patch('json.dump')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
@@ -337,12 +340,13 @@ class TestDownload(unittest.TestCase):
     def test_save_download_history(self, mock_makedirs, mock_open, mock_json_dump):
         """Test that download history is correctly saved to file."""
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir')
-        exporter.download_history = {
+        exporter.history_storage.download_history = {
             'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet'},
             'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet'}
         }
 
-        exporter._save_download_history()
+        # TODO: Rewrite this test to use the download_history property.
+        exporter.history_storage.save_history()
 
         # Verify file operations
         mock_makedirs.assert_called_once_with('/test/dir', exist_ok=True)
@@ -352,17 +356,17 @@ class TestDownload(unittest.TestCase):
         actual_data = mock_json_dump.call_args[0][0]
         self.assertIn('_meta', actual_data)
         self.assertIn('files', actual_data)
-        self.assertEqual(actual_data['files'], exporter.download_history)
+        self.assertEqual(actual_data['files'], exporter.history_storage.download_history)
         self.assertEqual(actual_data['_meta']['magic'], HISTORY_MAGIC)
         self.assertEqual(actual_data['_meta']['version'], 1)
         self.assertEqual(actual_data['_meta']['program'], 'synology-office-exporter')
 
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._unlock_download_history')
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.unlock_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.save_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.load_history')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._save_download_history')
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._load_download_history')
-    def test_context_manager(self, mock_load, mock_save, mock_process, mock_lock, mock_unlock):
+    def test_context_manager(self, mock_process, mock_load, mock_save, mock_lock, mock_unlock):
         """Test that context manager loads and saves download history."""
         with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir') as exporter:
             # In the context, _load_download_history should have been called already
@@ -402,7 +406,7 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.assert_called_once_with('123')
         mock_save.assert_called_once()
 
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
@@ -422,7 +426,7 @@ class TestDownload(unittest.TestCase):
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
         mock_json_load.assert_called_once()
 
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
@@ -450,7 +454,7 @@ class TestDownload(unittest.TestCase):
         mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
         mock_json_load.assert_called_once()
 
-    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._lock_download_history')
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
