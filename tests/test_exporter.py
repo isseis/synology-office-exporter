@@ -2,6 +2,7 @@
 Tests for the main SynologyOfficeExporter class.
 """
 
+from datetime import datetime
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO, StringIO
@@ -73,17 +74,8 @@ class TestExporter(unittest.TestCase):
                 }
 
                 exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-
-                # Set a sample history
-                sample_history = {
-                    'file_id_1': {
-                        'hash': 'hash1',
-                        'path': '/path/to/document.odoc',
-                        'download_time': '2023-01-01 12:00:00'
-                    }
-                }
-                # TODO: Rewrite this to use the download_history property.
-                exporter.history_storage.download_history = sample_history
+                exporter.history_storage.add_history_entry('/path/to/document.odoc', 'file_id_1', 'hash1',
+                                                           datetime(2023, 1, 1, 12, 0, 0))
 
                 # Trigger save
                 exporter.history_storage.save_history()
@@ -96,7 +88,13 @@ class TestExporter(unittest.TestCase):
                 mock_json_dump.assert_called_once_with(
                     {
                         '_meta': mock_build_metadata.return_value,
-                        'files': sample_history
+                        'files': {
+                            '/path/to/document.odoc': {
+                                'hash': 'hash1',
+                                'file_id': 'file_id_1',
+                                'download_time': '2023-01-01 12:00:00'
+                            }
+                        }
                     },
                     mock_file_open())
 

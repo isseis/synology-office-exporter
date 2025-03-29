@@ -1,4 +1,5 @@
 """Unit tests for the SynologyOfficeExporter download functionality."""
+from datetime import datetime
 import json
 import unittest
 from unittest.mock import patch, MagicMock, call
@@ -240,15 +241,7 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
-        # TODO: Rewrite this test to use the download_history property.
-        exporter.history_storage.download_history = {
-            'path/to/test.osheet': {
-                'file_id': '123',
-                'hash': 'abc123',
-                'path': 'path/to/test.osheet',
-                'download_time': '2023-01-01 12:00:00'
-            }
-        }
+        exporter.history_storage.add_history_entry('path/to/test.osheet', '123', 'abc123')
 
         # Process a document that's already in the history with the same hash
         exporter._process_document('123', 'path/to/test.osheet', 'abc123')
@@ -264,15 +257,7 @@ class TestDownload(unittest.TestCase):
 
         # Create exporter instance and set up download history with old hash
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
-        # TODO: Rewrite this test to use the download_history property.
-        exporter.history_storage.download_history = {
-            'path/to/test.osheet': {
-                'file_id': '123',
-                'hash': 'old-hash',
-                'path': 'path/to/test.osheet',
-                'download_time': '2023-01-01 12:00:00'
-            }
-        }
+        exporter.history_storage.add_history_entry('path/to/test.osheet', '123', 'old-hash')
 
         # Process a document that's in history but with a new hash
         exporter._process_document('123', 'path/to/test.osheet', 'new-hash')
@@ -282,7 +267,7 @@ class TestDownload(unittest.TestCase):
         mock_save.assert_called_once()
 
         # Verify that the history was updated with the new hash
-        self.assertEqual(exporter.history_storage.download_history['path/to/test.osheet']['hash'], 'new-hash')
+        self.assertEqual(exporter.history_storage.get_history_entry('path/to/test.osheet')['hash'], 'new-hash')
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_download_history_saves_new_files(self, mock_save):
@@ -290,8 +275,6 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'new file data')
 
         exporter = SynologyOfficeExporter(self.mock_synd, skip_history=True)
-        # TODO: Rewrite this test to use the download_history property.
-        exporter.history_storage.download_history = {}
 
         # Process a new document
         exporter._process_document('456', 'path/to/new.osheet', 'new-file-hash')
@@ -301,9 +284,9 @@ class TestDownload(unittest.TestCase):
         mock_save.assert_called_once()
 
         # Verify that the new file was added to history
-        self.assertIn('path/to/new.osheet', exporter.history_storage.download_history)
-        self.assertEqual(exporter.history_storage.download_history['path/to/new.osheet']['file_id'], '456')
-        self.assertEqual(exporter.history_storage.download_history['path/to/new.osheet']['hash'], 'new-file-hash')
+        self.assertIsNotNone(exporter.history_storage.get_history_entry('path/to/new.osheet'))
+        self.assertEqual(exporter.history_storage.get_history_entry('path/to/new.osheet')['file_id'], '456')
+        self.assertEqual(exporter.history_storage.get_history_entry('path/to/new.osheet')['hash'], 'new-file-hash')
 
     @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('json.load')
@@ -332,8 +315,8 @@ class TestDownload(unittest.TestCase):
             mock_json_load.assert_called_once()
 
             # Verify history was loaded correctly - files should be in download_history
-            self.assertEqual(len(exporter.history_storage.download_history), 2)
-            self.assertEqual(exporter.history_storage.download_history['test.osheet']['hash'], 'abc123')
+            self.assertEqual(len(exporter.history_storage.get_history_keys()), 2)
+            self.assertEqual(exporter.history_storage.get_history_entry('test.osheet')['hash'], 'abc123')
 
     @patch('json.dump')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
@@ -341,12 +324,9 @@ class TestDownload(unittest.TestCase):
     def test_save_download_history(self, mock_makedirs, mock_open, mock_json_dump):
         """Test that download history is correctly saved to file."""
         exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir')
-        exporter.history_storage.download_history = {
-            'test.osheet': {'file_id': '123', 'hash': 'abc123', 'path': 'test.osheet'},
-            'test2.osheet': {'file_id': '456', 'hash': 'def456', 'path': 'test2.osheet'}
-        }
+        exporter.history_storage.add_history_entry('test.osheet', '123', 'abc123', datetime(2023, 1, 1, 12, 0, 0))
+        exporter.history_storage.add_history_entry('test2.osheet', '456', 'def456', datetime(2023, 1, 2, 12, 0, 0))
 
-        # TODO: Rewrite this test to use the download_history property.
         exporter.history_storage.save_history()
 
         # Verify file operations
@@ -357,7 +337,17 @@ class TestDownload(unittest.TestCase):
         actual_data = mock_json_dump.call_args[0][0]
         self.assertIn('_meta', actual_data)
         self.assertIn('files', actual_data)
-        self.assertEqual(actual_data['files'], exporter.history_storage.download_history)
+        self.assertEqual(exporter.history_storage.get_history_keys(), set(['test.osheet', 'test2.osheet']))
+        self.assertEqual({
+            'file_id': '123',
+            'hash': 'abc123',
+            'download_time': '2023-01-01 12:00:00',
+        }, exporter.history_storage.get_history_entry('test.osheet'))
+        self.assertEqual({
+            'file_id': '456',
+            'hash': 'def456',
+            'download_time': '2023-01-02 12:00:00',
+        }, exporter.history_storage.get_history_entry('test2.osheet'))
         self.assertEqual(actual_data['_meta']['magic'], HISTORY_MAGIC)
         self.assertEqual(actual_data['_meta']['version'], 1)
         self.assertEqual(actual_data['_meta']['program'], 'synology-office-exporter')

@@ -5,12 +5,14 @@ This module provides the DownloadHistoryFile class, which manages the download
 history and locking mechanism for the Synology Office Exporter.
 """
 
+from abc import ABC
 from filelock import FileLock, Timeout
 import logging
 import os
 import json
-from typing import Dict, Any, Set
+from typing import Dict, Set, TypedDict
 from datetime import datetime
+from typing_extensions import override
 
 from synology_office_exporter.exception import DownloadHistoryError
 
@@ -19,7 +21,117 @@ HISTORY_VERSION = 1
 HISTORY_MAGIC = 'SYNOLOGY_OFFICE_EXPORTER'
 
 
-class DownloadHistoryFile:
+class DownloadHistoryEntry(TypedDict):
+    """
+    Represents a single entry in the download history.
+
+    Attributes:
+        file_id: The ID of the file
+        hash: The hash value of the file
+        download_time: The time when the file was downloaded
+    """
+
+    file_id: str
+    hash: str
+    download_time: str
+
+
+class DownloadHistory(ABC):
+    """
+    Abstract base class for managing download history.
+
+    This class provides an interface for handling download history operations,
+    including locking, loading, saving, and checking download status.
+    """
+
+    def lock_history(self):
+        """
+        Acquire a lock on the download history file.
+
+        Raises:
+            DownloadHistoryError: If the lock cannot be acquired, indicating another process
+                                is already running.
+        """
+        pass
+
+    def unlock_history(self):
+        """
+        Release the lock on the download history file.
+        """
+        pass
+
+    def load_history(self):
+        """
+        Load the download history from a JSON file.
+
+        Raises:
+            DownloadHistoryError: If the history file exists but is corrupted or has an
+                                incompatible format.
+        """
+        pass
+
+    def save_history(self):
+        """
+        Save the download history to a JSON file.
+        """
+        pass
+
+    def should_download(self, file_path: str, hash_value: str) -> bool:
+        """
+        Determine if a file should be downloaded based on history and force flag.
+
+        Args:
+            file_path: The path of the file
+            hash_value: The current hash value of the file
+
+        Returns:
+            bool: True if the file should be downloaded, False otherwise
+        """
+        pass
+
+    def add_history_entry(self, file_path: str, file_id: str, hash_value: str) -> None:
+        """
+        Add or update an entry in the download history.
+
+        Args:
+            file_path: The path of the file
+            file_id: The ID of the file
+            hash_value: The hash value of the file
+        """
+        pass
+
+    def get_history_keys(self) -> Set[str]:
+        """
+        Get the set of keys (file paths) in the download history.
+
+        Returns:
+            set: Set of file paths in the history
+        """
+        pass
+
+    def get_history_entry(self, file_path: str) -> DownloadHistoryEntry:
+        """
+        Get a specific entry from the download history.
+
+        Args:
+            file_path: The path of the file to retrieve
+
+        Returns:
+            dict: The history entry for the specified file path
+        """
+        pass
+
+    def remove_history_entry(self, file_path: str) -> None:
+        """
+        Remove an entry from the download history.
+
+        Args:
+            file_path: The path of the file to remove
+        """
+        pass
+
+
+class DownloadHistoryFile(DownloadHistory):
     """
     Manages the download history file and locking mechanism.
 
@@ -46,8 +158,8 @@ class DownloadHistoryFile:
         """
         self.lock = None
         self.lock_file_path = os.path.join(output_dir, '.download_history.lock')
-        self.download_history_file = os.path.join(output_dir, '.download_history.json')
-        self.download_history: Dict[str, Any] = {}
+        self.__download_history_file = os.path.join(output_dir, '.download_history.json')
+        self.__download_history: Dict[str, DownloadHistoryEntry] = {}
         self.force_download = force_download
         self.skip_history = skip_history
         self.output_dir = output_dir
@@ -81,43 +193,30 @@ class DownloadHistoryFile:
         finally:
             self.unlock_history()
 
-    def lock_history(self):
-        """
-        Acquire a lock on the download history file.
-
-        Raises:
-            DownloadHistoryError: If the lock cannot be acquired, indicating another process
-                                is already running.
-        """
+    @override
+    def lock_history(self):  # noqa: D102
         try:
             if not self.skip_history:
                 self.lock = FileLock(self.lock_file_path)
+
                 self.lock.acquire(blocking=False)
         except Timeout:
             logging.error('Download history lock file already exists. Another process may be running.')
             raise DownloadHistoryError('Download history lock file already exists. Another process may be running.')
 
-    def unlock_history(self):
-        """
-        Release the lock on the download history file.
-        """
+    @override
+    def unlock_history(self):  # noqa: D102
         if self.lock:
             self.lock.release()
 
-    def load_history(self):
-        """
-        Load the download history from a JSON file.
-
-        Raises:
-            DownloadHistoryError: If the history file exists but is corrupted or has an
-                                incompatible format.
-        """
-        if self.skip_history or not os.path.exists(self.download_history_file):
-            self.download_history = {}
+    @override
+    def load_history(self):  # noqa: D102
+        if self.skip_history or not os.path.exists(self.__download_history_file):
+            self.__download_history = {}
             return
 
         try:
-            with open(self.download_history_file, 'r') as f:
+            with open(self.__download_history_file, 'r') as f:
                 history_data = json.load(f)
         except Exception as e:
             logging.error(f'Error loading download history: {e}')
@@ -139,27 +238,25 @@ class DownloadHistoryFile:
                     f'History file version {version} is newer than current version {HISTORY_VERSION}. ')
 
             # Extract the actual file history
-            self.download_history = history_data.get('files', {})
+            self.__download_history = history_data.get('files', {})
 
-    def save_history(self):
-        """
-        Save the download history to a JSON file.
-        """
+    @override
+    def save_history(self):  # noqa: D102
         if self.skip_history:
             return
 
         try:
-            os.makedirs(os.path.dirname(self.download_history_file), exist_ok=True)
+            os.makedirs(os.path.dirname(self.__download_history_file), exist_ok=True)
 
             # Create history data with metadata
             history_data = {
                 '_meta': self._build_metadata(),
-                'files': self.download_history
+                'files': self.__download_history
             }
 
-            with open(self.download_history_file, 'w') as f:
+            with open(self.__download_history_file, 'w') as f:
                 json.dump(history_data, f)
-            logging.info(f'Saved download history for {len(self.download_history)} files')
+            logging.info(f'Saved download history for {len(self.__download_history)} files')
         except Exception as e:
             logging.error(f'Error saving download history: {e}')
 
@@ -178,64 +275,34 @@ class DownloadHistoryFile:
             'program': 'synology-office-exporter'
         }
 
-    def get_history(self) -> Dict[str, Any]:
-        """
-        Get the current download history.
+    @override
+    def get_history_keys(self) -> Set[str]:  # noqa: D102
+        return set(self.__download_history.keys())
 
-        Returns:
-            dict: The current download history
-        """
-        return self.download_history
+    @override
+    def get_history_entry(self, file_path: str) -> DownloadHistoryEntry:  # noqa: D102
+        return self.__download_history.get(file_path, None)
 
-    def get_history_keys(self) -> Set[str]:
-        """
-        Get the set of keys (file paths) in the download history.
-
-        Returns:
-            set: Set of file paths in the history
-        """
-        return set(self.download_history.keys())
-
-    def add_history_entry(self, file_path: str, file_id: str, hash_value: str):
-        """
-        Add or update an entry in the download history.
-
-        Args:
-            file_path: The path of the file
-            file_id: The ID of the file
-            hash_value: The hash value of the file
-        """
-        self.download_history[file_path] = {
+    @override
+    def add_history_entry(self, file_path: str, file_id: str, hash_value: str,  # noqa: D102
+                          download_time=datetime.now()) -> None:  # noqa: D102
+        self.__download_history[file_path] = {
             'file_id': file_id,
             'hash': hash_value,
-            'download_time': str(datetime.now())
+            'download_time': str(download_time)
         }
 
-    def remove_history_entry(self, file_path: str):
-        """
-        Remove an entry from the download history.
+    @override
+    def remove_history_entry(self, file_path: str) -> None:  # noqa: D102
+        if file_path in self.__download_history:
+            del self.__download_history[file_path]
 
-        Args:
-            file_path: The path of the file to remove
-        """
-        if file_path in self.download_history:
-            del self.download_history[file_path]
-
-    def should_download(self, file_path: str, hash_value: str) -> bool:
-        """
-        Determine if a file should be downloaded based on history and force flag.
-
-        Args:
-            file_path: The path of the file
-            hash_value: The current hash value of the file
-
-        Returns:
-            bool: True if the file should be downloaded, False otherwise
-        """
+    @override
+    def should_download(self, file_path: str, hash_value: str) -> bool:  # noqa: D102
         if self.force_download:
             return True
 
-        if file_path not in self.download_history:
+        if file_path not in self.__download_history:
             return True
 
-        return self.download_history[file_path]['hash'] != hash_value
+        return self.__download_history[file_path]['hash'] != hash_value

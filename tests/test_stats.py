@@ -65,15 +65,7 @@ class TestStats(unittest.TestCase):
         file_hash = 'test_hash'
 
         # Add file to download history
-        # TODO: Rewrite this to use the download_history property.
-        self.exporter.history_storage.download_history = {
-            display_path: {
-                'file_id': file_id,
-                'hash': file_hash,
-                'path': display_path,
-                'download_time': '2023-01-01 00:00:00'
-            }
-        }
+        self.exporter.history_storage.add_history_entry(display_path, file_id, file_hash)
 
         # Execute the test
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file') as mock_save:
