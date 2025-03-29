@@ -7,7 +7,8 @@ import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO
 
-from synology_office_exporter.exporter import HISTORY_MAGIC, DownloadHistoryFile, SynologyOfficeExporter
+from synology_office_exporter.download_history import HISTORY_MAGIC, DownloadHistoryFile
+from synology_office_exporter.exporter import SynologyOfficeExporter
 
 
 class TestDeletedFiles(unittest.TestCase):

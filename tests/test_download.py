@@ -4,7 +4,8 @@ import unittest
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
 import os
-from synology_office_exporter.exporter import HISTORY_MAGIC, SynologyOfficeExporter
+from synology_office_exporter.download_history import HISTORY_MAGIC
+from synology_office_exporter.exporter import SynologyOfficeExporter
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
 
 
