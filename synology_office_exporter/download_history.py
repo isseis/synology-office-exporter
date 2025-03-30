@@ -26,9 +26,9 @@ class DownloadHistoryEntry(TypedDict):
     Represents a single entry in the download history.
 
     Attributes:
-        file_id: The ID of the file
+        file_id: The ID, which is assigned by the NAS device, of the file
         hash: The hash value of the file
-        download_time: The time when the file was downloaded
+        download_time: The time when the file was downloaded from the NAS device
     """
 
     file_id: str
@@ -145,9 +145,13 @@ class DownloadHistoryFile(DownloadHistory):
         output_dir (str): Directory where the history file is stored
         download_history (dict): The current download history data
         force_download (bool): If True, force download regardless of history
+        skip_lock (bool): If True, skip locking mechanism (for testing)
+
+    TODO: Remove skip_lock and use mock for the DownloadHistoryFile instead.
     """
 
-    def __init__(self, output_dir: str = '.', force_download: bool = False, skip_history: bool = False):
+    def __init__(self, output_dir: str = '.', force_download: bool = False, skip_history: bool = False,
+                 skip_lock: bool = False):
         """
         Initialize the DownloadHistoryFile.
 
@@ -158,6 +162,7 @@ class DownloadHistoryFile(DownloadHistory):
         """
         self.lock = None
         self.lock_file_path = os.path.join(output_dir, '.download_history.lock')
+        self.skip_lock = skip_lock
         self.__download_history_file = os.path.join(output_dir, '.download_history.json')
         self.__download_history: Dict[str, DownloadHistoryEntry] = {}
         self.force_download = force_download
@@ -197,7 +202,7 @@ class DownloadHistoryFile(DownloadHistory):
     def lock_history(self):  # noqa: D102
         try:
             if not self.skip_history:
-                self.lock = FileLock(self.lock_file_path)
+                self.lock = FileLock(self.lock_file_path, skip_lock=self.skip_lock)
 
                 self.lock.acquire(blocking=False)
         except Timeout:

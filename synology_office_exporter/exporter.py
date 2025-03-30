@@ -58,7 +58,8 @@ class SynologyOfficeExporter:
     """
 
     def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False,
-                 stat_buf: StringIO = None, skip_history: bool = False):
+                 stat_buf: StringIO = None, skip_history: bool = False,
+                 download_history_storage: DownloadHistoryFile = None):
         """
         Initialize the SynologyOfficeExporter with the given parameters.
 
@@ -74,11 +75,14 @@ class SynologyOfficeExporter:
         self.stat_buf = stat_buf
 
         # Initialize history storage
-        self.history_storage = DownloadHistoryFile(
-            output_dir=output_dir,
-            force_download=force_download,
-            skip_history=skip_history
-        )
+        if download_history_storage is None:
+            self.__history_storage = DownloadHistoryFile(
+                output_dir=output_dir,
+                force_download=force_download,
+                skip_history=skip_history
+            )
+        else:
+            self.__history_storage = download_history_storage
 
         # Counters for tracking statistics
         self.total_found_files = 0
@@ -101,8 +105,8 @@ class SynologyOfficeExporter:
         Returns:
             SynologyOfficeExporter: The instance itself for use in with statements.
         """
-        self.history_storage.lock_history()
-        self.history_storage.load_history()
+        self.__history_storage.lock_history()
+        self.__history_storage.load_history()
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
@@ -129,11 +133,11 @@ class SynologyOfficeExporter:
             else:
                 logging.info('Skipping file deletion due to exceptions during processing')
 
-            self.history_storage.save_history()
+            self.__history_storage.save_history()
         except Exception:
             raise
         finally:
-            self.history_storage.unlock_history()
+            self.__history_storage.unlock_history()
 
         self._dump_summary()
 
@@ -146,7 +150,7 @@ class SynologyOfficeExporter:
         The method will set had_exceptions flag if errors occur during deletion.
         """
         logging.info('Removing deleted files...')
-        deleted_file_paths = self.history_storage.get_history_keys() - self.current_file_paths
+        deleted_file_paths = sorted(self.__history_storage.get_history_keys() - self.current_file_paths)
         for file_path in deleted_file_paths:
             try:
                 offline_name = self.convert_synology_to_ms_office_filename(file_path)
@@ -155,20 +159,20 @@ class SynologyOfficeExporter:
                     continue
                 output_path = os.path.join(self.output_dir, offline_name.lstrip('/'))
 
-                if os.path.exists(output_path):
-                    logging.info(f'Removing deleted file: {output_path}')
+                logging.info(f'Removing deleted file: {output_path}')
+                try:
                     os.remove(output_path)
                     self.deleted_files += 1
-                else:
+                except FileNotFoundError:
                     logging.warning(f'File already removed: {output_path}')
 
-                # Remove from download history
-                self.history_storage.remove_history_entry(file_path)
+                self.__history_storage.remove_history_entry(file_path)
 
             except Exception as e:
                 logging.error(f'Error removing deleted file {file_path}: {e}')
                 # Set the exception flag to prevent future deletions in this session
                 self.had_exceptions = True
+                return
 
         logging.info(f'Removed {self.deleted_files} files that were deleted from the NAS')
 
@@ -318,7 +322,7 @@ class SynologyOfficeExporter:
             self.total_found_files += 1
 
             # Check if file is already downloaded and unchanged
-            if not self.history_storage.should_download(display_path, hash):
+            if not self.__history_storage.should_download(display_path, hash):
                 logging.info(f'Skipping already downloaded file: {display_path}')
                 self.skipped_files += 1
                 return
@@ -336,7 +340,7 @@ class SynologyOfficeExporter:
             self.downloaded_files += 1
 
             # Save download info to history
-            self.history_storage.add_history_entry(display_path, file_id, hash)
+            self.__history_storage.add_history_entry(display_path, file_id, hash)
         except Exception as e:
             logging.error(f'Error downloading document {display_path}: {e}')
             self.had_exceptions = True

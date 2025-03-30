@@ -31,6 +31,7 @@ import logging
 import os
 import sys
 from dotenv import load_dotenv
+from synology_office_exporter.download_history import DownloadHistoryFile
 from synology_office_exporter.exception import DownloadHistoryError
 from synology_office_exporter.exporter import SynologyOfficeExporter
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
@@ -97,8 +98,12 @@ def main():  # noqa: D103
         with SynologyDriveEx(username, password, server, dsm_version='7') as synd:
             # Create and use the downloader
             stat_buf = io.StringIO()
+
+            # TODO: Encapsulate the logic of creating the download history file
+            # and the exporter in a function or class method
+            download_history = DownloadHistoryFile(output_dir=args.output, force_download=args.force)
             with SynologyOfficeExporter(synd, output_dir=args.output, force_download=args.force,
-                                        stat_buf=stat_buf) as exporter:
+                                        stat_buf=stat_buf, download_history_storage=download_history) as exporter:
                 exporter.download_mydrive_files()
                 exporter.download_shared_files()
                 exporter.download_teamfolder_files()

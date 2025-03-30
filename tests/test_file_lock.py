@@ -46,7 +46,7 @@ class TestFileLock(unittest.TestCase):
         with patch('synology_office_exporter.download_history.FileLock') as mock_filelock:
             mock_lock = MagicMock()
             mock_filelock.return_value = mock_lock
-            mock_lock.acquire.side_effect = Timeout("lock_file")
+            mock_lock.acquire.side_effect = Timeout('lock_file')
 
             history_file = DownloadHistoryFile()
             with self.assertRaises(DownloadHistoryError):
@@ -62,7 +62,7 @@ class TestFileLock(unittest.TestCase):
 
             try:
                 with DownloadHistoryFile():
-                    raise RuntimeError("Test exception")
+                    raise RuntimeError('Test exception')
             except RuntimeError:
                 pass
 

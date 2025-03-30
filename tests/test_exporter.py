@@ -2,13 +2,11 @@
 Tests for the main SynologyOfficeExporter class.
 """
 
-from datetime import datetime
 import unittest
 from unittest.mock import patch, MagicMock, mock_open
 from io import BytesIO, StringIO
 import os
 
-from synology_office_exporter.download_history import HISTORY_MAGIC, DownloadHistoryFile
 from synology_office_exporter.exporter import SynologyOfficeExporter
 
 
@@ -59,44 +57,6 @@ class TestExporter(unittest.TestCase):
 
         # Verify content was written
         mock_file_open().write.assert_called_once_with(test_content)
-
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('json.dump')
-    def test_save_download_history(self, mock_json_dump, mock_file_open):
-        """Test that download history is saved correctly."""
-        with patch.object(DownloadHistoryFile, 'load_history'):
-            with patch.object(DownloadHistoryFile, '_build_metadata') as mock_build_metadata:
-                mock_build_metadata.return_value = {
-                    'version': 1,
-                    'magic': HISTORY_MAGIC,
-                    'created': '2025-03-22 14:43:44.966404',
-                    'program': 'synology-office-exporter'
-                }
-
-                exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
-                exporter.history_storage.add_history_entry('/path/to/document.odoc', 'file_id_1', 'hash1',
-                                                           datetime(2023, 1, 1, 12, 0, 0))
-
-                # Trigger save
-                exporter.history_storage.save_history()
-
-                # Verify file was opened correctly
-                history_file = os.path.join(self.output_dir, '.download_history.json')
-                mock_file_open.assert_called_with(history_file, 'w')
-
-                # Verify history was dumped
-                mock_json_dump.assert_called_once_with(
-                    {
-                        '_meta': mock_build_metadata.return_value,
-                        'files': {
-                            '/path/to/document.odoc': {
-                                'hash': 'hash1',
-                                'file_id': 'file_id_1',
-                                'download_time': '2023-01-01 12:00:00'
-                            }
-                        }
-                    },
-                    mock_file_open())
 
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=mock_open)
@@ -178,6 +138,36 @@ class TestExporter(unittest.TestCase):
 
         exporter._process_document('testfile', '/path/to/test.odoc', 'hash123')
         self.assertTrue(exporter.had_exceptions)
+
+    @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_document')
+    def test_process_directory(self, mock_process_document):
+        """Test the complete process of tracking and removing deleted files."""
+
+        # Mock SynologyDriveEx methods
+        self.mock_synd.list_folder.return_value = {
+            'success': True,
+            'data': {'items': [
+                {
+                    'file_id': 'file_id_1',
+                    'name': 'document.odoc',
+                    'display_path': '/path/to/document.odoc',
+                    'content_type': 'document',
+                    'hash': 'hash1'
+                },
+            ]}
+        }
+        self.mock_synd.download_synology_office_file.return_value = BytesIO(b'file content')
+
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
+                                          download_history_storage=MagicMock())
+
+        # Process directory which only has document.docx now
+        exporter._process_directory('dir_id', 'test_dir')
+
+        # Verify that the document was processed
+        mock_process_document.assert_called_once_with(
+            'file_id_1', '/path/to/document.odoc', 'hash1'
+        )
 
 
 if __name__ == '__main__':
