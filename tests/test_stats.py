@@ -1,6 +1,6 @@
 """Unit tests for the SynologyOfficeExporter statistics tracking functionality."""
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, MagicMock, patch
 import os
 import tempfile
 from io import BytesIO
@@ -20,9 +20,6 @@ class TestStats(unittest.TestCase):
 
         # Create an instance of the exporter
         self.exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.temp_dir)
-
-        # Clear download history
-        self.exporter.download_history = {}
 
         # Reset statistics counters
         self.exporter.total_found_files = 0
@@ -64,24 +61,19 @@ class TestStats(unittest.TestCase):
         display_path = 'test_document.odoc'
         file_hash = 'test_hash'
 
-        # Add file to download history
-        self.exporter.download_history = {
-            display_path: {
-                'file_id': file_id,
-                'hash': file_hash,
-                'path': display_path,
-                'download_time': '2023-01-01 00:00:00'
-            }
-        }
+        download_history_storage = MagicMock()
+        download_history_storage.should_download.return_value = False
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.temp_dir,
+                                          download_history_storage=download_history_storage)
 
         # Execute the test
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file') as mock_save:
-            self.exporter._process_document(file_id, display_path, file_hash)
+            exporter._process_document(file_id, display_path, file_hash)
 
             # Verify
-            self.assertEqual(self.exporter.total_found_files, 1)
-            self.assertEqual(self.exporter.downloaded_files, 0)
-            self.assertEqual(self.exporter.skipped_files, 1)
+            self.assertEqual(exporter.total_found_files, 1)
+            self.assertEqual(exporter.downloaded_files, 0)
+            self.assertEqual(exporter.skipped_files, 1)
             mock_save.assert_not_called()
 
     def test_process_non_office_document(self):
