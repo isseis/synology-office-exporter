@@ -86,7 +86,8 @@ class TestExporter(unittest.TestCase):
         """Test that statistics are correctly written to the provided buffer."""
         stat_buf = StringIO()
 
-        with SynologyOfficeExporter(self.mock_synd, stat_buf=stat_buf, skip_history=True) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, stat_buf=stat_buf,
+                                    download_history_storage=MagicMock()) as exporter:
             exporter.total_found_files = 3
             exporter.skipped_files = 2
             exporter.downloaded_files = 1
@@ -142,7 +143,6 @@ class TestExporter(unittest.TestCase):
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_document')
     def test_process_directory(self, mock_process_document):
         """Test the complete process of tracking and removing deleted files."""
-
         # Mock SynologyDriveEx methods
         self.mock_synd.list_folder.return_value = {
             'success': True,

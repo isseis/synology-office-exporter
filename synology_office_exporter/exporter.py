@@ -58,8 +58,7 @@ class SynologyOfficeExporter:
     """
 
     def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False,
-                 stat_buf: StringIO = None, skip_history: bool = False,
-                 download_history_storage: DownloadHistoryFile = None):
+                 stat_buf: StringIO = None, download_history_storage: DownloadHistoryFile = None):
         """
         Initialize the SynologyOfficeExporter with the given parameters.
 
@@ -68,7 +67,6 @@ class SynologyOfficeExporter:
             output_dir: Directory where converted files will be saved
             force_download: If True, files will be downloaded regardless of download history
             stat_buf: StringIO buffer to write statistics output
-            skip_history: If True, download history will not be loaded or saved (for testing)
         """
         self.synd = synd
         self.output_dir = output_dir
@@ -79,7 +77,7 @@ class SynologyOfficeExporter:
             self.__history_storage = DownloadHistoryFile(
                 output_dir=output_dir,
                 force_download=force_download,
-                skip_history=skip_history
+                skip_history=False
             )
         else:
             self.__history_storage = download_history_storage
