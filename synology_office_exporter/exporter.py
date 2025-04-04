@@ -76,8 +76,7 @@ class SynologyOfficeExporter:
         if download_history_storage is None:
             self.__history_storage = DownloadHistoryFile(
                 output_dir=output_dir,
-                force_download=force_download,
-                skip_history=False
+                force_download=force_download
             )
         else:
             self.__history_storage = download_history_storage

@@ -141,7 +141,6 @@ class DownloadHistoryFile(DownloadHistory):
     without being concerned with the implementation details.
 
     Attributes:
-        skip_history (bool): If True, download history operations are skipped
         output_dir (str): Directory where the history file is stored
         download_history (dict): The current download history data
         force_download (bool): If True, force download regardless of history
@@ -150,7 +149,7 @@ class DownloadHistoryFile(DownloadHistory):
     TODO: Remove skip_lock and use mock for the DownloadHistoryFile instead.
     """
 
-    def __init__(self, output_dir: str = '.', force_download: bool = False, skip_history: bool = False,
+    def __init__(self, output_dir: str = '.', force_download: bool = False,
                  skip_lock: bool = False):
         """
         Initialize the DownloadHistoryFile.
@@ -158,7 +157,7 @@ class DownloadHistoryFile(DownloadHistory):
         Args:
             output_dir: Directory where the history file will be stored
             force_download: If True, ignore existing history when checking if files need to be downloaded
-            skip_history: If True, skip all history operations (for testing)
+            skip_lock: If True, skip the locking mechanism (for testing purposes)
         """
         self.lock = None
         self.lock_file_path = os.path.join(output_dir, '.download_history.lock')
@@ -166,7 +165,7 @@ class DownloadHistoryFile(DownloadHistory):
         self.__download_history_file = os.path.join(output_dir, '.download_history.json')
         self.__download_history: Dict[str, DownloadHistoryEntry] = {}
         self.force_download = force_download
-        self.skip_history = skip_history
+        self.skip_history = False
         self.output_dir = output_dir
 
     def __enter__(self):

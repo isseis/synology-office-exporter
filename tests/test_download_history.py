@@ -53,7 +53,7 @@ class TestDownloadHistory(unittest.TestCase):
     def test_should_download_force_download(self):
         """Test should_download when force_download is True."""
         # Create history with force_download=True
-        history = DownloadHistoryFile(self.output_dir, force_download=True, skip_history=True)
+        history = DownloadHistoryFile(self.output_dir, force_download=True)
 
         # Manually add a file to history without saving
         history.add_history_entry('test_file.doc', 'file_id_123', 'hash123')
