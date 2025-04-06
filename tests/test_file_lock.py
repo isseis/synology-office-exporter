@@ -86,20 +86,17 @@ class TestFileLockIntegration(unittest.TestCase):
         """Test that a second instance cannot acquire the lock when first one holds it."""
         # First instance
         download_history_storage = DownloadHistoryFile(output_dir=self.temp_dir.name)
-        with SynologyOfficeExporter(self.synd_mock, output_dir=self.temp_dir.name,
-                                    download_history_storage=download_history_storage):
+        with SynologyOfficeExporter(self.synd_mock, download_history_storage, output_dir=self.temp_dir.name):
 
             # Try to create a second instance that should fail
             download_history_storage2 = DownloadHistoryFile(output_dir=self.temp_dir.name)
             with self.assertRaises(DownloadHistoryError):
-                with SynologyOfficeExporter(self.synd_mock, output_dir=self.temp_dir.name,
-                                            download_history_storage=download_history_storage2):
+                with SynologyOfficeExporter(self.synd_mock, download_history_storage2, output_dir=self.temp_dir.name):
                     self.fail()  # Should not reach here
 
         # Verify lock file is released by creating a new instance after cleanup
         download_history_storage3 = DownloadHistoryFile(output_dir=self.temp_dir.name)
-        with SynologyOfficeExporter(self.synd_mock, output_dir=self.temp_dir.name,
-                                    download_history_storage=download_history_storage3):
+        with SynologyOfficeExporter(self.synd_mock, download_history_storage3, output_dir=self.temp_dir.name):
             # If we get here, it means the lock was successfully acquired
             pass
 
