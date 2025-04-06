@@ -142,10 +142,9 @@ class TestDownloadHistory(unittest.TestCase):
             'files': {}
         }
 
-        download_history_storage = DownloadHistoryFile(self.output_dir, skip_lock=True)
-
+        download_history = DownloadHistoryFile(self.output_dir, skip_lock=True)
         with self.assertRaises(DownloadHistoryError):
-            download_history_storage.load_history()
+            download_history.load_history()
 
         # Verify that the history file was attempted to be opened
         mock_exists.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'))
@@ -170,9 +169,9 @@ class TestDownloadHistory(unittest.TestCase):
             'files': {}
         }
 
-        downald_history_storage = DownloadHistoryFile(self.output_dir, skip_lock=True)
+        download_history = DownloadHistoryFile(self.output_dir, skip_lock=True)
         with self.assertRaises(DownloadHistoryError):
-            downald_history_storage.load_history()
+            download_history.load_history()
 
         # Verify that the history file was attempted to be opened
         mock_exists.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'))

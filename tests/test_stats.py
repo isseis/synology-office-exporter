@@ -63,9 +63,9 @@ class TestStats(unittest.TestCase):
         file_hash = 'test_hash'
 
         # Simulate that the file is already downloaded
-        download_history_storage = MagicMock()
-        download_history_storage.should_download.return_value = False
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage, output_dir=self.temp_dir)
+        download_history = MagicMock()
+        download_history.should_download.return_value = False
+        exporter = SynologyOfficeExporter(self.mock_synd, download_history, output_dir=self.temp_dir)
 
         # Execute the test
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file') as mock_save:
