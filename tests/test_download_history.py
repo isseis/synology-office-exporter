@@ -1,11 +1,13 @@
 """
 Test suite for the DownloadHistoryFile class.
 """
+import json
 import os
 import unittest
 
 from datetime import datetime
 from synology_office_exporter.download_history import HISTORY_MAGIC, DownloadHistoryFile
+from synology_office_exporter.exception import DownloadHistoryError
 from unittest.mock import patch
 
 
@@ -122,3 +124,76 @@ class TestDownloadHistory(unittest.TestCase):
         self.assertEqual(actual_data['_meta']['magic'], HISTORY_MAGIC)
         self.assertEqual(actual_data['_meta']['version'], 1)
         self.assertEqual(actual_data['_meta']['program'], 'synology-office-exporter')
+
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('json.load')
+    def test_load_download_history_too_new_version(self, mock_json_load, mock_open, mock_exists):
+        """Test that an error is raised when the download history file has a version that's too new."""
+        mock_exists.return_value = True
+        # Simulate history data with a newer version
+        mock_json_load.return_value = {
+            '_meta': {
+                'version': 999,  # Very new version
+                'magic': HISTORY_MAGIC,
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
+            },
+            'files': {}
+        }
+
+        download_history_storage = DownloadHistoryFile(self.output_dir, skip_lock=True)
+
+        with self.assertRaises(DownloadHistoryError):
+            download_history_storage.load_history()
+
+        # Verify that the history file was attempted to be opened
+        mock_exists.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'))
+        mock_open.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'), 'r')
+        mock_json_load.assert_called_once()
+
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('json.load')
+    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists, mock_lock):
+        """Test that an error is raised when the download history file has an incorrect magic number."""
+        mock_exists.return_value = True
+        # Simulate history data with an invalid magic number
+        mock_json_load.return_value = {
+            '_meta': {
+                'version': 1,
+                'magic': 'INCORRECT_MAGIC',  # Incorrect magic number
+                'created': '2023-01-01 12:00:00',
+                'program': 'synology-office-exporter'
+            },
+            'files': {}
+        }
+
+        downald_history_storage = DownloadHistoryFile(self.output_dir, skip_lock=True)
+        with self.assertRaises(DownloadHistoryError):
+            downald_history_storage.load_history()
+
+        # Verify that the history file was attempted to be opened
+        mock_exists.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'))
+        mock_open.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'), 'r')
+        mock_json_load.assert_called_once()
+
+    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
+    @patch('os.path.exists')
+    @patch('builtins.open', new_callable=unittest.mock.mock_open)
+    @patch('json.load')
+    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists, mock_lock):
+        """Test that an error is raised when the download history file is corrupt."""
+        mock_exists.return_value = True
+        # Simulate an error caused by invalid JSON
+        mock_json_load.side_effect = json.JSONDecodeError('Invalid JSON', '', 0)
+
+        downald_history_storage = DownloadHistoryFile(self.output_dir, skip_lock=True)
+        with self.assertRaises(DownloadHistoryError):
+            downald_history_storage.load_history()
+
+        # Verify that the history file was attempted to be opened
+        mock_exists.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'))
+        mock_open.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'), 'r')
+        mock_json_load.assert_called_once()

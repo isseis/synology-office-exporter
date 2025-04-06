@@ -71,7 +71,8 @@ class TestExporter(unittest.TestCase):
         self.mock_synd.download_synology_office_file.return_value = mock_data
 
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file'):
-            exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+            exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir,
+                                              download_history_storage=MagicMock())
 
             # Clear any auto-loaded history
             exporter.current_file_paths = set()
@@ -105,7 +106,8 @@ class TestExporter(unittest.TestCase):
         )
 
     def test_download_mydrive_files_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir,
+                                          download_history_storage=MagicMock())
 
         # Make list_folder raise an exception
         self.mock_synd.list_folder.side_effect = Exception('Network error')
@@ -114,7 +116,8 @@ class TestExporter(unittest.TestCase):
         self.assertTrue(exporter.had_exceptions)
 
     def test_download_shared_files_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir,
+                                          download_history_storage=MagicMock())
 
         # Make list_folder raise an exception
         self.mock_synd.shared_with_me.side_effect = Exception('Network error')
@@ -123,7 +126,8 @@ class TestExporter(unittest.TestCase):
         self.assertTrue(exporter.had_exceptions)
 
     def test_download_teamfolder_files_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir,
+                                          download_history_storage=MagicMock())
 
         # Make list_folder raise an exception
         self.mock_synd.get_teamfolder_info.side_effect = Exception('Network error')
@@ -132,7 +136,8 @@ class TestExporter(unittest.TestCase):
         self.assertTrue(exporter.had_exceptions)
 
     def test_process_document_with_exception(self):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir)
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.output_dir,
+                                          download_history_storage=MagicMock())
 
         # Make download_synology_office_file raise an exception
         self.mock_synd.download_synology_office_file.side_effect = Exception('Download error')

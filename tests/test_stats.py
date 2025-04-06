@@ -19,7 +19,8 @@ class TestStats(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
 
         # Create an instance of the exporter
-        self.exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.temp_dir)
+        self.exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.temp_dir,
+                                               download_history_storage=MagicMock())
 
         # Reset statistics counters
         self.exporter.total_found_files = 0

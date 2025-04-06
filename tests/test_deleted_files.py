@@ -181,7 +181,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('os.remove')
     def test_no_file_deletion_when_exception_occurs_and_captured(self, mock_remove):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports')
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
+                                          download_history_storage=MagicMock())
         # Simulate an exception during processing, captured by except block which sets had_exceptions.
         exporter.had_exceptions = True
         exporter.__exit__(None, None, None)
@@ -191,7 +192,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('os.remove')
     def test_no_file_deletion_when_exception_occurs_and_not_captured(self, mock_remove):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports')
+        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
+                                          download_history_storage=MagicMock())
         # Simulate an exception during processing, and not captured.
         exporter.had_exceptions = False
         exporter.__exit__(ValueError, ValueError('Test exception'), None)

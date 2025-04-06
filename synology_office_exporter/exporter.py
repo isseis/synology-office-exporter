@@ -74,10 +74,7 @@ class SynologyOfficeExporter:
 
         # Initialize history storage
         if download_history_storage is None:
-            self.__history_storage = DownloadHistoryFile(
-                output_dir=output_dir,
-                force_download=force_download
-            )
+            raise Exception('Download history storage is required')
         else:
             self.__history_storage = download_history_storage
 
