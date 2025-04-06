@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 from synology_office_exporter.exporter import SynologyOfficeExporter
+from tests.mock_download_history import MockDownloadHistory
 
 
 class TestDeletedFiles(unittest.TestCase):
@@ -37,8 +38,8 @@ class TestDeletedFiles(unittest.TestCase):
         mock_path_exists.return_value = True
 
         download_history = MagicMock()
-        with SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                    download_history_storage=download_history) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, download_history,
+                                    output_dir='/tmp/synology_office_exports') as exporter:
             # Simliate that the history file is loaded, and there were two files when the exporter was executed
             # last time.
             download_history.get_history_keys.return_value = set(
@@ -58,8 +59,7 @@ class TestDeletedFiles(unittest.TestCase):
     def test_file_already_removed(self, mock_remove):
         """Test handling of files that are already removed from the filesystem."""
         download_history = MagicMock()
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                          download_history_storage=download_history)
+        exporter = SynologyOfficeExporter(self.mock_synd, download_history, output_dir='/tmp/synology_office_exports')
         # Simliate that the history file is loaded, and there were two files when the exporter was executed
         # last time.
         download_history.get_history_keys.return_value = set(
@@ -91,8 +91,8 @@ class TestDeletedFiles(unittest.TestCase):
         download_history = MagicMock()
         download_history.get_history_keys.return_value = set(
             ['/path/to/document.odoc', '/path/to/spreadsheet.osheet'])
-        with SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                    download_history_storage=download_history) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, download_history,
+                                    output_dir='/tmp/synology_office_exports') as exporter:
             # Simulate that all files still exist on the NAS
             exporter.current_file_paths = {'/path/to/document.odoc', '/path/to/spreadsheet.osheet'}
 
@@ -111,8 +111,7 @@ class TestDeletedFiles(unittest.TestCase):
         download_history = MagicMock()
         download_history.get_history_keys.return_value = set(['/path/to/document.odoc'])
 
-        with SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                    download_history_storage=download_history):
+        with SynologyOfficeExporter(self.mock_synd, download_history, output_dir='/tmp/synology_office_exports'):
             pass
 
         # Verify that the deleted file from the NAS device is removed locally, and history is updated.
@@ -125,7 +124,7 @@ class TestDeletedFiles(unittest.TestCase):
         download_history = MagicMock()
 
         exporter = SynologyOfficeExporter(
-            self.mock_synd, output_dir='/tmp/synology_office_exports', download_history_storage=download_history)
+            self.mock_synd, download_history, output_dir='/tmp/synology_office_exports')
 
         # Simliate that the history file is loaded, and there were two files when the exporter was executed
         # last time.
@@ -148,8 +147,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._remove_deleted_files')
     def test_file_deletion_in_context_manager(self, mock_remove_deleted_files):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                          download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(),
+                                          output_dir='/tmp/synology_office_exports')
         # Ensure no exceptions
         exporter.had_exceptions = False
         exporter.__exit__(None, None, None)
@@ -159,8 +158,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._remove_deleted_files')
     def test_no_file_deletion_in_context_manager_with_exceptions_handled(self, mock_remove_deleted_files):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                          download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(),
+                                          output_dir='/tmp/synology_office_exports')
         # Simulate exceptions occured but captured
         exporter.had_exceptions = True
         exporter.__exit__(None, None, None)
@@ -170,8 +169,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._remove_deleted_files')
     def test_no_file_deletion_in_context_manager_with_exceptions_not_handled(self, mock_remove_deleted_files):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports',
-                                          download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(),
+                                          output_dir='/tmp/synology_office_exports')
         # Simulate exceptions occured and not captured
         exporter.had_exceptions = False
         exporter.__exit__(Exception, None, None)
@@ -181,7 +180,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('os.remove')
     def test_no_file_deletion_when_exception_occurs_and_captured(self, mock_remove):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports')
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(),
+                                          output_dir='/tmp/synology_office_exports')
         # Simulate an exception during processing, captured by except block which sets had_exceptions.
         exporter.had_exceptions = True
         exporter.__exit__(None, None, None)
@@ -191,7 +191,8 @@ class TestDeletedFiles(unittest.TestCase):
 
     @patch('os.remove')
     def test_no_file_deletion_when_exception_occurs_and_not_captured(self, mock_remove):
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='/tmp/synology_office_exports')
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(),
+                                          output_dir='/tmp/synology_office_exports')
         # Simulate an exception during processing, and not captured.
         exporter.had_exceptions = False
         exporter.__exit__(ValueError, ValueError('Test exception'), None)

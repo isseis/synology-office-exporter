@@ -57,13 +57,14 @@ class SynologyOfficeExporter:
             exporter.download_shared_files()
     """
 
-    def __init__(self, synd: SynologyDriveEx, output_dir: str = '.', force_download: bool = False,
-                 stat_buf: StringIO = None, download_history_storage: DownloadHistoryFile = None):
+    def __init__(self, synd: SynologyDriveEx, download_history_storage: DownloadHistoryFile,
+                 output_dir: str = '.', force_download: bool = False, stat_buf: StringIO = None):
         """
         Initialize the SynologyOfficeExporter with the given parameters.
 
         Args:
             synd: SynologyDriveEx instance for API communication
+            download_history_storage: DownloadHistoryFile instance for tracking download history
             output_dir: Directory where converted files will be saved
             force_download: If True, files will be downloaded regardless of download history
             stat_buf: StringIO buffer to write statistics output
@@ -73,13 +74,7 @@ class SynologyOfficeExporter:
         self.stat_buf = stat_buf
 
         # Initialize history storage
-        if download_history_storage is None:
-            self.__history_storage = DownloadHistoryFile(
-                output_dir=output_dir,
-                force_download=force_download
-            )
-        else:
-            self.__history_storage = download_history_storage
+        self.__history_storage = download_history_storage
 
         # Counters for tracking statistics
         self.total_found_files = 0

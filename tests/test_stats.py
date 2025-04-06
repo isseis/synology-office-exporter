@@ -6,6 +6,7 @@ import tempfile
 from io import BytesIO
 
 from synology_office_exporter.exporter import SynologyOfficeExporter
+from tests.mock_download_history import MockDownloadHistory
 
 
 class TestStats(unittest.TestCase):
@@ -19,7 +20,7 @@ class TestStats(unittest.TestCase):
         self.temp_dir = tempfile.mkdtemp()
 
         # Create an instance of the exporter
-        self.exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.temp_dir)
+        self.exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(), output_dir=self.temp_dir)
 
         # Reset statistics counters
         self.exporter.total_found_files = 0
@@ -61,10 +62,10 @@ class TestStats(unittest.TestCase):
         display_path = 'test_document.odoc'
         file_hash = 'test_hash'
 
-        download_history_storage = MagicMock()
-        download_history_storage.should_download.return_value = False
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir=self.temp_dir,
-                                          download_history_storage=download_history_storage)
+        # Simulate that the file is already downloaded
+        download_history = MagicMock()
+        download_history.should_download.return_value = False
+        exporter = SynologyOfficeExporter(self.mock_synd, download_history, output_dir=self.temp_dir)
 
         # Execute the test
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file') as mock_save:

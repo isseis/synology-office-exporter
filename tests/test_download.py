@@ -1,10 +1,8 @@
 """Unit tests for the SynologyOfficeExporter download functionality."""
-import json
 import unittest
 from unittest.mock import patch, MagicMock, call
 from io import BytesIO
 import os
-from synology_office_exporter.download_history import HISTORY_MAGIC
 from synology_office_exporter.exporter import SynologyOfficeExporter
 from synology_office_exporter.synology_drive_api import SynologyDriveEx
 from tests.mock_download_history import MockDownloadHistory
@@ -37,7 +35,7 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
         # Create SynologyOfficeExporter instance with test output directory
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter.save_bytesio_to_file = mock_save_bytesio_to_file
         exporter._process_document('123', 'path/to/test.osheet', hash=None)
 
@@ -64,7 +62,7 @@ class TestDownload(unittest.TestCase):
             {'file_id': '456', 'content_type': 'dir', 'name': 'folder1'}
         ]
 
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter.download_shared_files()
 
         # Verify _process_item was called for each shared item
@@ -81,7 +79,7 @@ class TestDownload(unittest.TestCase):
             'Team Folder 2': '012'
         }
 
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter.download_teamfolder_files()
 
         # Verify _process_directory was called for each team folder
@@ -94,7 +92,7 @@ class TestDownload(unittest.TestCase):
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_document')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
     def test_process_item(self, mock_process_directory, mock_process_document):
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
 
         # Test directory item
         dir_item = {
@@ -139,7 +137,7 @@ class TestDownload(unittest.TestCase):
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
     def test_download_mydrive_files(self, mock_process_directory):
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock)
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
 
         exporter.download_mydrive_files()
         mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
@@ -162,7 +160,7 @@ class TestDownload(unittest.TestCase):
         mock_process_item.side_effect = side_effect
 
         # Create exporter instance
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
 
         # Call method to test
         exporter.download_shared_files()
@@ -178,7 +176,7 @@ class TestDownload(unittest.TestCase):
         """Test that exceptions in _process_directory do not stop execution."""
         mock_process_directory.side_effect = Exception('Test error')
 
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter.download_mydrive_files()
 
         # Verify _process_directory was called with correct parameters
@@ -200,7 +198,7 @@ class TestDownload(unittest.TestCase):
             return None
         mock_process_directory.side_effect = side_effect
 
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter.download_teamfolder_files()
 
         # Verify all team folders were attempted to be processed
@@ -216,7 +214,7 @@ class TestDownload(unittest.TestCase):
         mock_download.side_effect = Exception('Download failed')
         self.mock_synd.download_synology_office_file = mock_download
 
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter._process_document('123', 'path/to/test.osheet', hash=None)
 
         mock_download.assert_called_once_with('123')
@@ -227,7 +225,7 @@ class TestDownload(unittest.TestCase):
         """Test that exceptions during file download do not stop processing."""
         self.mock_synd.download_synology_office_file.side_effect = Exception('Download failed')
 
-        exporter = SynologyOfficeExporter(self.mock_synd, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
         exporter._process_document('123', 'path/to/test.osheet', hash=None)
 
         # Verify download was attempted
@@ -243,8 +241,7 @@ class TestDownload(unittest.TestCase):
         download_history = MagicMock()
         download_history.should_download.return_value = False
 
-        with SynologyOfficeExporter(self.mock_synd,
-                                    download_history_storage=download_history) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, download_history) as exporter:
             exporter._process_document('123', 'path/to/test.osheet', 'old-hash')
 
         # Verify that download was not attempted
@@ -256,7 +253,7 @@ class TestDownload(unittest.TestCase):
         """Test that new files are added to download history."""
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'new file data')
         download_history = MagicMock()
-        with SynologyOfficeExporter(self.mock_synd, download_history_storage=download_history) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, download_history) as exporter:
             exporter._process_document('456', 'path/to/new.osheet', 'new-file-hash')
 
         # Verify that download was attempted
@@ -272,8 +269,7 @@ class TestDownload(unittest.TestCase):
         download_history = MockDownloadHistory()
 
         # Use the custom history storage with the exporter
-        with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir',
-                                    download_history_storage=download_history) as exporter:
+        with SynologyOfficeExporter(self.mock_synd, download_history, output_dir='/test/dir',) as exporter:
             # Verify that the exporter is using our custom history storage
 
             # Verify that lock and load methods were called during initialization
@@ -297,35 +293,32 @@ class TestDownload(unittest.TestCase):
         self.assertTrue(download_history.save_called)
         self.assertTrue(download_history.unlock_called)
 
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.unlock_history')
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.save_history')
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.load_history')
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter._process_directory')
-    def test_context_manager(self, mock_process, mock_load, mock_save, mock_lock, mock_unlock):
+    def test_context_manager(self, mock_process):
         """Test that context manager loads and saves download history."""
-        with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir') as exporter:
-            # In the context, _load_download_history should have been called already
-            mock_load.assert_called_once()
-            mock_save.assert_not_called()  # Not called yet
-            mock_lock.assert_called_once()
-            mock_unlock.assert_not_called()
+        mock_download_history = MockDownloadHistory()
+        with SynologyOfficeExporter(self.mock_synd, mock_download_history, output_dir='/test/dir') as exporter:
+            # In the context, lock and load should have been called already
+            self.assertTrue(mock_download_history.lock_called)
+            self.assertTrue(mock_download_history.load_called)
+            # save and unlock shouldn't be called yet.
+            self.assertFalse(mock_download_history.save_called)
+            self.assertFalse(mock_download_history.unlock_called)
 
         # Do something with the exporter
         exporter.download_mydrive_files()
 
         # After the context, _save_download_history should have been called
-        mock_save.assert_called_once()
         mock_process.assert_called_once()
-        mock_unlock.assert_called_once()
+        self.assertTrue(mock_download_history.save_called)
+        self.assertTrue(mock_download_history.unlock_called)
 
     @patch('synology_office_exporter.exporter.SynologyOfficeExporter.save_bytesio_to_file')
     def test_force_download_ignores_history(self, mock_save):
         """Test that force_download option downloads files regardless of history."""
         self.mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
-        exporter = SynologyOfficeExporter(self.mock_synd, output_dir='.',
-                                          force_download=True, download_history_storage=MagicMock())
+        exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(), output_dir='.', force_download=True)
         exporter.download_history = {
             'path/to/test.osheet': {
                 'file_id': '123',
@@ -342,82 +335,6 @@ class TestDownload(unittest.TestCase):
         # Verify that download was attempted despite being in history
         self.mock_synd.download_synology_office_file.assert_called_once_with('123')
         mock_save.assert_called_once()
-
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
-    @patch('os.path.exists')
-    @patch('builtins.open', new_callable=unittest.mock.mock_open)
-    @patch('json.load')
-    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists, mock_lock):
-        """Test that an error is raised when the download history file is corrupt."""
-        mock_exists.return_value = True
-        # Simulate an error caused by invalid JSON
-        mock_json_load.side_effect = json.JSONDecodeError('Invalid JSON', '', 0)
-
-        from synology_office_exporter.exception import DownloadHistoryError
-        with self.assertRaises(DownloadHistoryError):
-            with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir'):
-                self.assertTrue(False)  # Should not reach here
-
-        # Verify that the history file was attempted to be opened
-        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
-        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
-        mock_json_load.assert_called_once()
-
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
-    @patch('os.path.exists')
-    @patch('builtins.open', new_callable=unittest.mock.mock_open)
-    @patch('json.load')
-    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists, mock_lock):
-        """Test that an error is raised when the download history file has an incorrect magic number."""
-        mock_exists.return_value = True
-        # Simulate history data with an invalid magic number
-        mock_json_load.return_value = {
-            '_meta': {
-                'version': 1,
-                'magic': 'INCORRECT_MAGIC',  # Incorrect magic number
-                'created': '2023-01-01 12:00:00',
-                'program': 'synology-office-exporter'
-            },
-            'files': {}
-        }
-
-        from synology_office_exporter.exception import DownloadHistoryError
-        with self.assertRaises(DownloadHistoryError):
-            with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir'):
-                self.assertTrue(False)  # Should not reach here
-
-        # Verify that the history file was attempted to be opened
-        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
-        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
-        mock_json_load.assert_called_once()
-
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
-    @patch('os.path.exists')
-    @patch('builtins.open', new_callable=unittest.mock.mock_open)
-    @patch('json.load')
-    def test_load_download_history_too_new_version(self, mock_json_load, mock_open, mock_exists, mock_lock):
-        """Test that an error is raised when the download history file has a version that's too new."""
-        mock_exists.return_value = True
-        # Simulate history data with a newer version
-        mock_json_load.return_value = {
-            '_meta': {
-                'version': 999,  # Very new version
-                'magic': HISTORY_MAGIC,
-                'created': '2023-01-01 12:00:00',
-                'program': 'synology-office-exporter'
-            },
-            'files': {}
-        }
-
-        from synology_office_exporter.exception import DownloadHistoryError
-        with self.assertRaises(DownloadHistoryError):
-            with SynologyOfficeExporter(self.mock_synd, output_dir='/test/dir'):
-                self.assertTrue(False)  # Should not reach here
-
-        # Verify that the history file was attempted to be opened
-        mock_exists.assert_called_once_with('/test/dir/.download_history.json')
-        mock_open.assert_called_once_with('/test/dir/.download_history.json', 'r')
-        mock_json_load.assert_called_once()
 
 
 if __name__ == '__main__':
