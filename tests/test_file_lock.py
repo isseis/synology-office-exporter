@@ -81,8 +81,7 @@ class TestFileLockIntegration(unittest.TestCase):
         """Clean up temporary directory."""
         self.temp_dir.cleanup()
 
-    @patch('synology_office_exporter.download_history.DownloadHistoryFile.load_history')
-    def test_concurrent_access_prevention(self, mock_load):
+    def test_concurrent_access_prevention(self):
         """Test that a second instance cannot acquire the lock when first one holds it."""
         # First instance
         download_history = DownloadHistoryFile(output_dir=self.temp_dir.name)
