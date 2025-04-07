@@ -218,7 +218,7 @@ class TestDownload(unittest.TestCase):
         self.mock_synd.download_synology_office_file.assert_called_once_with('123')
         mock_save.assert_not_called()
 
-    def test_download_history_skips_should_not_download_files(self,):
+    def test_download_history_skips_should_not_download_files(self):
         """Test that files already in download history are skipped."""
         download_history = MagicMock()
         download_history.should_download.return_value = False
