@@ -78,17 +78,10 @@ class TestExporter(unittest.TestCase):
         # Verify content was written
         mock_file_open().write.assert_called_once_with(test_content)
 
-    @patch('os.path.exists')
-    @patch('builtins.open', new_callable=mock_open)
-    @patch('json.load')
-    def test_process_document_tracking(self, mock_json_load, mock_file_open, mock_path_exists):
+    def test_process_document_tracking(self):
         """Test that documents are properly tracked for deletion detection."""
-        mock_path_exists.return_value = True
-        mock_json_load.return_value = {}
-
         # Mock BytesIO for download
-        mock_data = BytesIO(b'test content')
-        self.mock_synd.download_synology_office_file.return_value = mock_data
+        self.mock_synd.download_synology_office_file.return_value = BytesIO(b'test content')
 
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file'):
             exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(), output_dir=self.output_dir)

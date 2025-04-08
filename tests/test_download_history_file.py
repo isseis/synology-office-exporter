@@ -151,11 +151,10 @@ class TestDownloadHistory(unittest.TestCase):
         mock_open.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'), 'r')
         mock_json_load.assert_called_once()
 
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
-    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists, mock_lock):
+    def test_load_download_history_invalid_magic(self, mock_json_load, mock_open, mock_exists):
         """Test that an error is raised when the download history file has an incorrect magic number."""
         mock_exists.return_value = True
         # Simulate history data with an invalid magic number
@@ -178,11 +177,10 @@ class TestDownloadHistory(unittest.TestCase):
         mock_open.assert_called_once_with(os.path.join(self.output_dir, '.download_history.json'), 'r')
         mock_json_load.assert_called_once()
 
-    @patch('synology_office_exporter.exporter.DownloadHistoryFile.lock_history')
     @patch('os.path.exists')
     @patch('builtins.open', new_callable=unittest.mock.mock_open)
     @patch('json.load')
-    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists, mock_lock):
+    def test_load_download_history_invalid_json(self, mock_json_load, mock_open, mock_exists):
         """Test that an error is raised when the download history file is corrupt."""
         mock_exists.return_value = True
         # Simulate an error caused by invalid JSON

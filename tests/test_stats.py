@@ -115,8 +115,7 @@ class TestStats(unittest.TestCase):
         }
 
         # Set up the mock
-        mock_data = BytesIO(b'test data')
-        self.mock_synd.download_synology_office_file.return_value = mock_data
+        self.mock_synd.download_synology_office_file.return_value = BytesIO(b'test data')
 
         # Execute the test
         with patch.object(SynologyOfficeExporter, 'save_bytesio_to_file') as mock_save:
