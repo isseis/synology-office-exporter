@@ -26,7 +26,6 @@ Authentication:
 
 import argparse
 import getpass
-import io
 import logging
 import os
 import sys
@@ -97,17 +96,17 @@ def main():  # noqa: D103
         # Connect to Synology Drive
         with SynologyDriveEx(username, password, server, dsm_version='7') as synd:
             # Create and use the downloader
-            stat_buf = io.StringIO()
-
-            # TODO: Encapsulate the logic of creating the download history file
-            # and the exporter in a function or class method
             download_history = DownloadHistoryFile(output_dir=args.output, force_download=args.force)
             with SynologyOfficeExporter(synd, output_dir=args.output, force_download=args.force,
-                                        stat_buf=stat_buf, download_history_storage=download_history) as exporter:
+                                        download_history_storage=download_history) as exporter:
                 exporter.download_mydrive_files()
                 exporter.download_shared_files()
                 exporter.download_teamfolder_files()
-            print(stat_buf.getvalue())
+
+            # Print summary of export
+            print("\n===== Download Results Summary =====\n")
+            print(exporter.get_summary())
+            print("=====================================")
 
         logging.info('Done!')
         return 0

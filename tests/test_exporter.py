@@ -1,13 +1,16 @@
 """
-Tests for the main SynologyOfficeExporter class.
+Tests for the SynologyOfficeExporter class
 """
 
 import unittest
-from unittest.mock import patch, MagicMock, mock_open
-from io import BytesIO, StringIO
+from unittest.mock import MagicMock, patch, mock_open
+from io import BytesIO
 import os
+import tempfile
+import shutil
 
 from synology_office_exporter.exporter import SynologyOfficeExporter
+from synology_office_exporter.download_history import DownloadHistoryFile
 from tests.mock_download_history import MockDownloadHistory
 
 
@@ -15,10 +18,26 @@ class TestExporter(unittest.TestCase):
     """Test suite for the SynologyOfficeExporter class."""
 
     def setUp(self):
-        """Set up test environment before each test."""
-        # Create a mock SynologyDriveEx instance
+        """Set up test fixtures"""
+        self.temp_dir = tempfile.mkdtemp()
+        self.output_dir = os.path.join(self.temp_dir, "output")
+        self.history_file = os.path.join(self.temp_dir, "history.json")
+
+        # Create mocks
         self.mock_synd = MagicMock()
-        self.output_dir = '/tmp/synology_office_exports'
+        self.history_storage = DownloadHistoryFile(self.history_file)
+
+        # Initialize the exporter
+        self.exporter = SynologyOfficeExporter(
+            synd=self.mock_synd,
+            download_history_storage=self.history_storage,
+            output_dir=self.output_dir
+        )
+
+    def tearDown(self):
+        """Tear down test fixtures"""
+        # Remove temp directory
+        shutil.rmtree(self.temp_dir)
 
     def test_convert_synology_to_ms_office_filename(self):
         """Test conversion of Synology Office filenames to MS Office filenames."""
@@ -76,27 +95,28 @@ class TestExporter(unittest.TestCase):
             # Verify the file ID was added to the tracking set
             self.assertIn('/path/to/document.odoc', exporter.current_file_paths)
 
-    def test_stat_buf(self):
-        """Test that statistics are correctly written to the provided buffer."""
-        stat_buf = StringIO()
-
-        with SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(), stat_buf=stat_buf,
+    def test_statistics_tracking(self):
+        """Test that statistics are correctly tracked and can be retrieved via get_summary."""
+        # Create the exporter
+        with SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(),
                                     output_dir=self.output_dir) as exporter:
+            # Set the statistics values
             exporter.total_found_files = 3
             exporter.skipped_files = 2
             exporter.downloaded_files = 1
             exporter.deleted_files = 4
 
-        # Verify output matches expected format
-        self.assertEqual(
-            stat_buf.getvalue(),
-            '\n===== Download Results Summary =====\n\n'
-            'Total files found for backup: 3\n'
-            'Files skipped: 2\n'
-            'Files downloaded: 1\n'
-            'Files deleted: 4\n'
-            '=====================================\n'
-        )
+            # Get the summary
+            summary = exporter.get_summary()
+
+            # Verify the summary matches the expected format
+            expected_summary = (
+                'Total files found for backup: 3\n'
+                'Files skipped: 2\n'
+                'Files downloaded: 1\n'
+                'Files deleted: 4\n'
+            )
+            self.assertEqual(summary, expected_summary)
 
     def test_download_mydrive_files_with_exception(self):
         exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory(), output_dir=self.output_dir)
@@ -162,6 +182,23 @@ class TestExporter(unittest.TestCase):
         mock_process_document.assert_called_once_with(
             'file_id_1', '/path/to/document.odoc', 'hash1'
         )
+
+    def test_get_summary(self):
+        """Test that get_summary returns correct statistics"""
+        # Set up some statistics
+        self.exporter.total_found_files = 10
+        self.exporter.skipped_files = 3
+        self.exporter.downloaded_files = 5
+        self.exporter.deleted_files = 2
+
+        # Get summary
+        summary = self.exporter.get_summary()
+
+        # Check that summary contains all statistics
+        self.assertIn("Total files found for backup: 10", summary)
+        self.assertIn("Files skipped: 3", summary)
+        self.assertIn("Files downloaded: 5", summary)
+        self.assertIn("Files deleted: 2", summary)
 
 
 if __name__ == '__main__':
