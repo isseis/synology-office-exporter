@@ -99,9 +99,7 @@ def main():  # noqa: D103
             download_history = DownloadHistoryFile(output_dir=args.output, force_download=args.force)
             with SynologyOfficeExporter(synd, output_dir=args.output, force_download=args.force,
                                         download_history_storage=download_history) as exporter:
-                exporter.download_mydrive_files()
-                exporter.download_shared_files()
-                exporter.download_teamfolder_files()
+                exporter.download_files()
 
             # Print summary of export
             print("\n===== Download Results Summary =====\n")

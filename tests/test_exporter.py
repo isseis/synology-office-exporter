@@ -124,7 +124,7 @@ class TestExporter(unittest.TestCase):
         # Make list_folder raise an exception
         self.mock_synd.list_folder.side_effect = Exception('Network error')
 
-        exporter.download_mydrive_files()
+        exporter._download_mydrive_files()
         self.assertTrue(exporter.had_exceptions)
 
     def test_download_shared_files_with_exception(self):
@@ -133,7 +133,7 @@ class TestExporter(unittest.TestCase):
         # Make list_folder raise an exception
         self.mock_synd.shared_with_me.side_effect = Exception('Network error')
 
-        exporter.download_shared_files()
+        exporter._download_shared_files()
         self.assertTrue(exporter.had_exceptions)
 
     def test_download_teamfolder_files_with_exception(self):
@@ -142,7 +142,7 @@ class TestExporter(unittest.TestCase):
         # Make list_folder raise an exception
         self.mock_synd.get_teamfolder_info.side_effect = Exception('Network error')
 
-        exporter.download_teamfolder_files()
+        exporter._download_teamfolder_files()
         self.assertTrue(exporter.had_exceptions)
 
     def test_process_document_with_exception(self):
