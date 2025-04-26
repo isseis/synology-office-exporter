@@ -164,7 +164,7 @@ class SynologyOfficeExporter:
 
         logging.info(f'Removed {self.deleted_files} files that were deleted from the NAS')
 
-    def download_mydrive_files(self):
+    def _download_mydrive_files(self):
         """
         Download and process all Synology Office files from the user's personal My Drive.
 
@@ -181,7 +181,18 @@ class SynologyOfficeExporter:
             logging.error(f'Error downloading My Drive files: {e}')
             self.had_exceptions = True
 
-    def download_shared_files(self):
+    def download_files(self):
+        """
+        Download and process all Synology Office files.
+
+        This method is a wrapper that calls the individual download methods for
+        My Drive, shared files, and team folders.
+        """
+        self._download_mydrive_files()
+        self._download_shared_files()
+        self._download_teamfolder_files()
+
+    def _download_shared_files(self):
         """
         Download and process all Synology Office files that are shared with the user.
 
@@ -203,7 +214,7 @@ class SynologyOfficeExporter:
             logging.error(f'Error accessing shared files: {e}')
             self.had_exceptions = True
 
-    def download_teamfolder_files(self):
+    def _download_teamfolder_files(self):
         """
         Download and process all Synology Office files from team folders.
 

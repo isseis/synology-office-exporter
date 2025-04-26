@@ -63,7 +63,7 @@ class TestDownload(unittest.TestCase):
 
         with patch.object(SynologyOfficeExporter, '_process_item') as mock_process_item:
             exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
-            exporter.download_shared_files()
+            exporter._download_shared_files()
 
         # Verify _process_item was called for each shared item
         self.assertEqual(mock_process_item.call_count, 2)
@@ -81,7 +81,7 @@ class TestDownload(unittest.TestCase):
 
         with patch.object(SynologyOfficeExporter, '_process_directory') as mock_process_directory:
             exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
-            exporter.download_teamfolder_files()
+            exporter._download_teamfolder_files()
 
         # Verify _process_directory was called for each team folder
         self.assertEqual(mock_process_directory.call_count, 2)
@@ -144,7 +144,7 @@ class TestDownload(unittest.TestCase):
     def test_download_mydrive_files(self, mock_process_directory):
         exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
 
-        exporter.download_mydrive_files()
+        exporter._download_mydrive_files()
         mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
 
     def test_exception_handling_shared_files(self):
@@ -164,7 +164,7 @@ class TestDownload(unittest.TestCase):
                 return None
             mock_process_item.side_effect = side_effect
             exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
-            exporter.download_shared_files()
+            exporter._download_shared_files()
 
         # Verify all items were attempted to be processed, despite the exception
         self.assertEqual(mock_process_item.call_count, 3)
@@ -177,7 +177,7 @@ class TestDownload(unittest.TestCase):
         with patch.object(SynologyOfficeExporter, '_process_directory') as mock_process_directory:
             mock_process_directory.side_effect = Exception('Test error')
             exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
-            exporter.download_mydrive_files()
+            exporter._download_mydrive_files()
 
         # Verify _process_directory was called with correct parameters
         mock_process_directory.assert_called_once_with('/mydrive', 'My Drive')
@@ -198,7 +198,7 @@ class TestDownload(unittest.TestCase):
                 return None
             mock_process_directory.side_effect = side_effect
             exporter = SynologyOfficeExporter(self.mock_synd, MockDownloadHistory())
-            exporter.download_teamfolder_files()
+            exporter._download_teamfolder_files()
 
         # Verify all team folders were attempted to be processed
         self.assertEqual(mock_process_directory.call_count, 3)
@@ -284,7 +284,7 @@ class TestDownload(unittest.TestCase):
             self.assertFalse(mock_download_history.unlock_called)
 
             # Do something with the exporter
-            exporter.download_mydrive_files()
+            exporter._download_mydrive_files()
 
         # After the context, _save_download_history should have been called
         mock_process.assert_called_once()
