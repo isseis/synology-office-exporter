@@ -8,7 +8,7 @@ This tool downloads Synology Office files from your Synology NAS and converts th
 
 ## Maintenance mode
 
-This project is in maintenance mode, which means I have no plan to add new features anymore. Please consider to switch to [go-synology-office-exporter](https://github.com/isseis/go-synology-office-exporter).
+This project is in maintenance mode, which means no new features will be added. Please consider switching to [go-synology-office-exporter](https://github.com/isseis/go-synology-office-exporter).
 
 ## File Conversion Types
 
